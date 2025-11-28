@@ -6,6 +6,28 @@ inclusion: always
 
 This steering document defines the standard directory structure for the Cyber UI Toolkit project, a GUI toolkit library using 3D API backend.
 
+## Architecture Overview
+
+The library consists of two layers:
+
+**Layer 1: Graphics Primitive Rendering (C++)**
+- Low-level 3D graphics API integration (Metal/Vulkan/OpenGL)
+- High-performance rendering primitives
+- Buffer and resource management
+- Shader compilation and management
+- Python bindings via pybind11
+
+**Layer 2: UI Toolkit (Python)**
+- Widget system and components
+- Layout management
+- Event handling and input
+- Theme and styling system
+- Application-level API
+
+**Applications (Python)**
+- Built on top of Layer 2
+- Pure Python for ease of development
+
 ## Directory Structure
 
 ```

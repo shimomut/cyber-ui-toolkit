@@ -81,4 +81,26 @@ bool Image::loadFromFile(const std::string& filepath) {
     return true;
 }
 
+bool Image::loadFromData(const unsigned char* data, int width, int height, int channels) {
+    if (!data || width <= 0 || height <= 0 || channels <= 0) {
+        std::cerr << "Image: Invalid data parameters" << std::endl;
+        return false;
+    }
+    
+    width_ = width;
+    height_ = height;
+    channels_ = channels;
+    format_ = Format::PNG; // Assume PNG format for raw data
+    
+    // Copy the data
+    size_t dataSize = width * height * channels;
+    data_.resize(dataSize);
+    std::copy(data, data + dataSize, data_.begin());
+    
+    std::cout << "Image: Loaded from memory (" << width << "x" << height 
+              << ", " << channels << " channels, " << dataSize << " bytes)" << std::endl;
+    
+    return true;
+}
+
 } // namespace CyberUI

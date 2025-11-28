@@ -21,6 +21,9 @@ public:
     // Load image from file (JPEG or PNG)
     bool loadFromFile(const std::string& filepath);
     
+    // Load image from raw RGBA data
+    bool loadFromData(const unsigned char* data, int width, int height, int channels);
+    
     // Get image properties
     int getWidth() const { return width_; }
     int getHeight() const { return height_; }

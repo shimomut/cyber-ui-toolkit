@@ -1,8 +1,10 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
+#include <pybind11/numpy.h>
 #include "../core/Object3D.h"
 #include "../rendering/Shape2D.h"
 #include "../rendering/Renderer.h"
+#include "../rendering/Image.h"
 
 namespace py = pybind11;
 using namespace CyberUI;
@@ -41,6 +43,20 @@ PYBIND11_MODULE(cyber_ui_core, m) {
         .def("get_name", &Object3D::getName)
         .def("render", &Object3D::render);
 
+    // Image class (defined before Shape2D since Shape2D uses it)
+    py::class_<Image, std::shared_ptr<Image>>(m, "Image")
+        .def(py::init<>())
+        .def("load_from_file", &Image::loadFromFile)
+        .def("load_from_data", [](Image& img, py::array_t<unsigned char> data, int width, int height, int channels) {
+            py::buffer_info buf = data.request();
+            return img.loadFromData(static_cast<unsigned char*>(buf.ptr), width, height, channels);
+        })
+        .def("get_width", &Image::getWidth)
+        .def("get_height", &Image::getHeight)
+        .def("get_channels", &Image::getChannels)
+        .def("is_loaded", &Image::isLoaded)
+        .def("get_file_path", &Image::getFilePath);
+
     // Shape2D class
     py::class_<Shape2D, Object3D, std::shared_ptr<Shape2D>>(m, "Shape2D")
         .def(py::init<>())
@@ -50,7 +66,10 @@ PYBIND11_MODULE(cyber_ui_core, m) {
             float r, g, b, a;
             shape.getColor(r, g, b, a);
             return py::make_tuple(r, g, b, a);
-        });
+        })
+        .def("set_image", &Shape2D::setImage)
+        .def("get_image", &Shape2D::getImage)
+        .def("has_image", &Shape2D::hasImage);
 
     // Rectangle class
     py::class_<Rectangle, Shape2D, std::shared_ptr<Rectangle>>(m, "Rectangle")

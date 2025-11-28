@@ -20,7 +20,7 @@ LDFLAGS := -shared -undefined dynamic_lookup -framework Metal -framework MetalKi
 
 # Source files
 CORE_SOURCES := $(SRC_DIR)/core/Object3D.cpp
-RENDERING_SOURCES := $(SRC_DIR)/rendering/Shape2D.cpp
+RENDERING_SOURCES := $(SRC_DIR)/rendering/Shape2D.cpp $(SRC_DIR)/rendering/Image.cpp
 METAL_SOURCES := $(SRC_DIR)/rendering/MetalRenderer.mm
 BINDING_SOURCES := $(SRC_DIR)/bindings/python_bindings.cpp
 ALL_CPP_SOURCES := $(CORE_SOURCES) $(RENDERING_SOURCES) $(BINDING_SOURCES)

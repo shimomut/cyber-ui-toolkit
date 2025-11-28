@@ -1,4 +1,4 @@
-.PHONY: all build clean run-basic install-deps help
+.PHONY: all build clean run-basic run-hierarchy install-deps help
 
 # Configuration
 CXX := clang++
@@ -19,7 +19,7 @@ INCLUDES := -I$(SRC_DIR) -I$(PYTHON_INCLUDE) $(PYBIND11_INCLUDE)
 LDFLAGS := -shared -undefined dynamic_lookup -framework Metal -framework MetalKit -framework Cocoa -framework QuartzCore
 
 # Source files
-CORE_SOURCES := $(SRC_DIR)/core/Object2D.cpp $(SRC_DIR)/core/Frame3D.cpp $(SRC_DIR)/core/Frame2D.cpp
+CORE_SOURCES := $(SRC_DIR)/core/Object2D.cpp $(SRC_DIR)/core/Frame3D.cpp $(SRC_DIR)/core/Frame2D.cpp $(SRC_DIR)/core/Camera.cpp $(SRC_DIR)/core/SceneRoot.cpp
 RENDERING_SOURCES := $(SRC_DIR)/rendering/Shape2D.cpp $(SRC_DIR)/rendering/Image.cpp
 METAL_SOURCES := $(SRC_DIR)/rendering/MetalRenderer.mm
 BINDING_SOURCES := $(SRC_DIR)/bindings/python_bindings.cpp
@@ -78,6 +78,11 @@ run-basic: build
 	@echo "Running basic shape2d sample..."
 	@cd samples/basic && $(PYTHON) shape2d.py
 
+# Run hierarchy demo sample
+run-hierarchy: build
+	@echo "Running hierarchy demo sample..."
+	@cd samples/basic && $(PYTHON) hierarchy_demo.py
+
 # Rebuild from scratch
 rebuild: clean build
 
@@ -91,5 +96,6 @@ help:
 	@echo "  make install-deps  - Install Python dependencies (pybind11)"
 	@echo "  make check-deps    - Check if dependencies are installed"
 	@echo "  make run-basic     - Build and run basic shape2d sample"
+	@echo "  make run-hierarchy - Build and run hierarchy demo sample"
 	@echo "  make help          - Show this help message"
 	@echo ""

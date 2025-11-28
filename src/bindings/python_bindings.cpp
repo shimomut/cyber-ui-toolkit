@@ -4,6 +4,8 @@
 #include "../core/Object2D.h"
 #include "../core/Frame3D.h"
 #include "../core/Frame2D.h"
+#include "../core/Camera.h"
+#include "../core/SceneRoot.h"
 #include "../rendering/Shape2D.h"
 #include "../rendering/Renderer.h"
 #include "../rendering/Image.h"
@@ -21,12 +23,54 @@ PYBIND11_MODULE(cyber_ui_core, m) {
         .def("begin_frame", &Renderer::beginFrame)
         .def("end_frame", &Renderer::endFrame)
         .def("render_object", &Renderer::renderObject)
+        .def("render_scene", &Renderer::renderScene)
         .def("should_close", &Renderer::shouldClose)
         .def("poll_events", &Renderer::pollEvents);
 
     // Factory function
     m.def("create_metal_renderer", &createMetalRenderer,
           "Create a Metal-based renderer for macOS");
+
+    // Camera class
+    py::class_<Camera, std::shared_ptr<Camera>>(m, "Camera")
+        .def(py::init<>())
+        .def("set_position", &Camera::setPosition)
+        .def("get_position", [](const Camera& cam) {
+            float x, y, z;
+            cam.getPosition(x, y, z);
+            return py::make_tuple(x, y, z);
+        })
+        .def("set_rotation", &Camera::setRotation)
+        .def("get_rotation", [](const Camera& cam) {
+            float pitch, yaw, roll;
+            cam.getRotation(pitch, yaw, roll);
+            return py::make_tuple(pitch, yaw, roll);
+        })
+        .def("set_perspective", &Camera::setPerspective)
+        .def("get_fov", [](const Camera& cam) {
+            float fov;
+            cam.getFOV(fov);
+            return fov;
+        })
+        .def("get_aspect", [](const Camera& cam) {
+            float aspect;
+            cam.getAspect(aspect);
+            return aspect;
+        })
+        .def("get_near_far", [](const Camera& cam) {
+            float near, far;
+            cam.getNearFar(near, far);
+            return py::make_tuple(near, far);
+        });
+
+    // SceneRoot class
+    py::class_<SceneRoot, std::shared_ptr<SceneRoot>>(m, "SceneRoot")
+        .def(py::init<>())
+        .def("add_frame3d", &SceneRoot::addFrame3D)
+        .def("remove_frame3d", &SceneRoot::removeFrame3D)
+        .def("set_camera", &SceneRoot::setCamera)
+        .def("get_camera", &SceneRoot::getCamera)
+        .def("clear", &SceneRoot::clear);
 
     // Frame3D - top-level 3D container
     py::class_<Frame3D, std::shared_ptr<Frame3D>>(m, "Frame3D")

@@ -4,6 +4,8 @@
 
 namespace CyberUI {
 
+class Frame3D;
+
 class MetalRenderer : public Renderer {
 public:
     MetalRenderer();
@@ -14,12 +16,21 @@ public:
     bool beginFrame() override;
     void endFrame() override;
     void renderObject(Object2D* object) override;
+    void renderScene(SceneRoot* scene) override;
     bool shouldClose() override;
     void pollEvents() override;
 
 private:
     void setupShaders();
-    void renderRectangle(class Rectangle* rect);
+    void renderRectangle(class Rectangle* rect, const float* mvpMatrix);
+    void renderFrame3D(Frame3D* frame, const float* viewProjMatrix);
+    void renderObject2D(Object2D* object, const float* mvpMatrix);
+    
+    void multiplyMatrices(const float* a, const float* b, float* result);
+    void createTransformMatrix(float x, float y, float z, 
+                              float pitch, float yaw, float roll,
+                              float sx, float sy, float sz,
+                              float* matrix);
     
     void* device_;
     void* commandQueue_;
@@ -31,6 +42,8 @@ private:
     
     bool initialized_;
     bool shouldClose_;
+    int windowWidth_;
+    int windowHeight_;
 };
 
 } // namespace CyberUI

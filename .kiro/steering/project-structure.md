@@ -40,7 +40,7 @@ cyber-ui-toolkit/
 │   ├── events/            # Event handling system
 │   ├── themes/            # Theming and styling
 │   └── utils/             # Utility functions and helpers
-├── test/                   # Test files
+├── tests/                  # Test files
 │   ├── unit/              # Unit tests
 │   ├── integration/       # Integration tests
 │   └── fixtures/          # Test fixtures and mock data
@@ -69,20 +69,24 @@ cyber-ui-toolkit/
 - Rendering backend implementations go in `src/rendering/`
 - Use clear, descriptive names for all modules
 
-### Tests (test/)
-- Mirror the src/ structure in test directories
-- Name test files with `.test` or `.spec` suffix
+### Tests (tests/)
+- All test files should be placed in `tests/` directory
+- Mirror the src/ structure in test subdirectories
+- Name test files with `test_` prefix or `.test`/`.spec` suffix
 - Keep unit tests focused and isolated
 - Integration tests should cover cross-component interactions
+- Verification and validation scripts also belong in `tests/`
 
 ### Documentation (doc/)
 - API docs should be auto-generated from source comments
 - Guides should be practical and example-driven
 - Architecture docs explain design decisions and patterns
+- All documentation markdown files should be placed in `doc/`
+- Sample-related documentation should be named with `samples-` prefix
 
 ### Samples (samples/)
 - Each sample should be self-contained and runnable
-- Include README in each sample directory
+- Sample code only - no markdown documentation files
 - Demonstrate specific features or use cases
 
 ## Naming Conventions
@@ -97,6 +101,6 @@ cyber-ui-toolkit/
 Always place files in the appropriate directory based on their purpose:
 - UI components → `src/widgets/`
 - Rendering code → `src/rendering/`
-- Tests → `test/unit/` or `test/integration/`
-- Examples → `samples/`
-- Documentation → `doc/`
+- Tests and verification scripts → `tests/`
+- Sample code (demonstrations only) → `samples/`
+- Documentation (all .md files) → `doc/`

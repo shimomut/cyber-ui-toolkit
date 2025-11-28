@@ -73,10 +73,10 @@ check-deps:
 	@$(PYTHON) -m pybind11 --includes >/dev/null 2>&1 || \
 		(echo "Error: pybind11 not found. Run 'make install-deps' first." && exit 1)
 
-# Run basic rectangle sample
+# Run basic shape2d sample
 run-basic: build
-	@echo "Running basic rectangle sample..."
-	@cd samples/basic && $(PYTHON) test_rectangle.py
+	@echo "Running basic shape2d sample..."
+	@cd samples/basic && $(PYTHON) shape2d.py
 
 # Rebuild from scratch
 rebuild: clean build
@@ -90,6 +90,6 @@ help:
 	@echo "  make rebuild       - Clean and build"
 	@echo "  make install-deps  - Install Python dependencies (pybind11)"
 	@echo "  make check-deps    - Check if dependencies are installed"
-	@echo "  make run-basic     - Build and run basic rectangle sample"
+	@echo "  make run-basic     - Build and run basic shape2d sample"
 	@echo "  make help          - Show this help message"
 	@echo ""

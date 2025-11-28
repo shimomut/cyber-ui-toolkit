@@ -1,8 +1,11 @@
 #pragma once
 
 #include "../core/Object3D.h"
+#include <memory>
 
 namespace CyberUI {
+
+class Image;
 
 // Base class for 2D shapes
 class Shape2D : public Object3D {
@@ -14,10 +17,16 @@ public:
     void setColor(float r, float g, float b, float a = 1.0f);
     void getColor(float& r, float& g, float& b, float& a) const;
 
+    // Texture/Image support
+    void setImage(std::shared_ptr<Image> image);
+    std::shared_ptr<Image> getImage() const { return image_; }
+    bool hasImage() const { return image_ != nullptr; }
+
     void render() override;
 
 protected:
     float color_[4];
+    std::shared_ptr<Image> image_;
 };
 
 // Rectangle shape

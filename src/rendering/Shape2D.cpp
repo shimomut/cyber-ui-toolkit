@@ -1,9 +1,10 @@
 #include "Shape2D.h"
+#include "Image.h"
 #include <iostream>
 
 namespace CyberUI {
 
-Shape2D::Shape2D() {
+Shape2D::Shape2D() : image_(nullptr) {
     // Default white color
     color_[0] = color_[1] = color_[2] = color_[3] = 1.0f;
 }
@@ -20,6 +21,10 @@ void Shape2D::getColor(float& r, float& g, float& b, float& a) const {
     g = color_[1];
     b = color_[2];
     a = color_[3];
+}
+
+void Shape2D::setImage(std::shared_ptr<Image> image) {
+    image_ = image;
 }
 
 void Shape2D::render() {
@@ -53,8 +58,14 @@ void Rectangle::render() {
     std::cout << "Rendering Rectangle: " << getName() 
               << " at (" << x << ", " << y << ", " << z << ")"
               << " size: " << width_ << "x" << height_
-              << " color: (" << r << ", " << g << ", " << b << ", " << a << ")"
-              << std::endl;
+              << " color: (" << r << ", " << g << ", " << b << ", " << a << ")";
+    
+    if (hasImage()) {
+        std::cout << " texture: " << getImage()->getFilePath() 
+                  << " (" << getImage()->getWidth() << "x" << getImage()->getHeight() << ")";
+    }
+    
+    std::cout << std::endl;
 
     // Render children
     for (const auto& child : getChildren()) {

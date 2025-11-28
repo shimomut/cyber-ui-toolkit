@@ -24,6 +24,11 @@ MetalRenderer::~MetalRenderer() {
 
 bool MetalRenderer::initialize(int width, int height, const char* title) {
     @autoreleasepool {
+        // Initialize NSApplication if not already done
+        [NSApplication sharedApplication];
+        [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
+        [NSApp activateIgnoringOtherApps:YES];
+        
         // Get default Metal device
         id<MTLDevice> device = MTLCreateSystemDefaultDevice();
         if (!device) {

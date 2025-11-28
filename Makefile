@@ -1,0 +1,85 @@
+.PHONY: all build clean run-basic install-deps help
+
+# Configuration
+CXX := clang++
+PYTHON := python3
+PYTHON_INCLUDE := $(shell $(PYTHON) -c "import sysconfig; print(sysconfig.get_path('include'))")
+PYTHON_EXT_SUFFIX := $(shell $(PYTHON) -c "import sysconfig; print(sysconfig.get_config_var('EXT_SUFFIX'))")
+PYBIND11_INCLUDE := $(shell $(PYTHON) -m pybind11 --includes 2>/dev/null || echo "")
+
+# Directories
+BUILD_DIR := build
+SRC_DIR := src
+OBJ_DIR := $(BUILD_DIR)/obj
+
+# Compiler flags
+CXXFLAGS := -std=c++17 -O3 -Wall -fPIC
+INCLUDES := -I$(SRC_DIR) -I$(PYTHON_INCLUDE) $(PYBIND11_INCLUDE)
+LDFLAGS := -shared -undefined dynamic_lookup
+
+# Source files
+CORE_SOURCES := $(SRC_DIR)/core/Object3D.cpp
+RENDERING_SOURCES := $(SRC_DIR)/rendering/Shape2D.cpp
+BINDING_SOURCES := $(SRC_DIR)/bindings/python_bindings.cpp
+ALL_SOURCES := $(CORE_SOURCES) $(RENDERING_SOURCES) $(BINDING_SOURCES)
+
+# Object files
+OBJECTS := $(patsubst $(SRC_DIR)/%.cpp,$(OBJ_DIR)/%.o,$(ALL_SOURCES))
+
+# Output library
+TARGET := $(BUILD_DIR)/cyber_ui_core$(PYTHON_EXT_SUFFIX)
+
+# Default target
+all: build
+
+# Build the C++ library
+build: $(TARGET)
+
+$(TARGET): $(OBJECTS)
+	@echo "Linking $@..."
+	@mkdir -p $(dir $@)
+	@$(CXX) $(LDFLAGS) -o $@ $^
+	@echo "Build complete: $@"
+
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp
+	@echo "Compiling $<..."
+	@mkdir -p $(dir $@)
+	@$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
+
+# Clean build artifacts
+clean:
+	@echo "Cleaning build artifacts..."
+	@rm -rf $(BUILD_DIR)
+	@echo "Clean complete!"
+
+# Install Python dependencies
+install-deps:
+	@echo "Installing dependencies..."
+	@pip3 install pybind11
+	@echo "Dependencies installed!"
+
+# Check if pybind11 is installed
+check-deps:
+	@$(PYTHON) -m pybind11 --includes >/dev/null 2>&1 || \
+		(echo "Error: pybind11 not found. Run 'make install-deps' first." && exit 1)
+
+# Run basic rectangle sample
+run-basic: build
+	@echo "Running basic rectangle sample..."
+	@cd samples/basic && $(PYTHON) test_rectangle.py
+
+# Rebuild from scratch
+rebuild: clean build
+
+# Help target
+help:
+	@echo "Cyber UI Toolkit - Makefile targets:"
+	@echo ""
+	@echo "  make build         - Build the C++ library"
+	@echo "  make clean         - Remove build artifacts"
+	@echo "  make rebuild       - Clean and build"
+	@echo "  make install-deps  - Install Python dependencies (pybind11)"
+	@echo "  make check-deps    - Check if dependencies are installed"
+	@echo "  make run-basic     - Build and run basic rectangle sample"
+	@echo "  make help          - Show this help message"
+	@echo ""

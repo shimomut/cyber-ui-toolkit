@@ -1,6 +1,7 @@
 #import "MetalRenderer.h"
 #import "Shape2D.h"
 #import "Image.h"
+#import "Text.h"
 #import "../core/SceneRoot.h"
 #import "../core/Frame3D.h"
 #import "../core/Camera.h"
@@ -377,6 +378,12 @@ void MetalRenderer::renderObject2D(Object2D* object, const float* mvpMatrix) {
         renderRectangle(rect, objectMVP);
     }
     
+    // Check if it's a Text
+    Text* text = dynamic_cast<Text*>(object);
+    if (text) {
+        renderText(text, objectMVP);
+    }
+    
     // Render children
     for (const auto& child : object->getChildren()) {
         renderObject2D(child.get(), objectMVP);
@@ -472,6 +479,127 @@ void MetalRenderer::renderRectangle(Rectangle* rect, const float* mvpMatrix) {
             [renderEncoder setFragmentTexture:texture atIndex:0];
             [renderEncoder setFragmentSamplerState:sampler atIndex:0];
         }
+        
+        [renderEncoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:6];
+    }
+}
+
+void MetalRenderer::renderText(Text* text, const float* mvpMatrix) {
+    @autoreleasepool {
+        // Render text using Core Text to generate a texture
+        
+        float r, g, b, a;
+        text->getColor(r, g, b, a);
+        
+        float fontSize = 24.0f;
+        if (text->hasFont()) {
+            fontSize = text->getFont()->getSize();
+        }
+        
+        std::string textStr = text->getText();
+        if (textStr.empty()) return;
+        
+        NSString* nsText = [NSString stringWithUTF8String:textStr.c_str()];
+        
+        // Create font
+        NSFont* font = [NSFont systemFontOfSize:fontSize];
+        if (text->hasFont() && text->getFont()->isBold()) {
+            font = [NSFont boldSystemFontOfSize:fontSize];
+        }
+        
+        // Calculate text size
+        NSDictionary* attributes = @{NSFontAttributeName: font};
+        NSSize textSize = [nsText sizeWithAttributes:attributes];
+        
+        int width = (int)ceil(textSize.width) + 4;  // Add padding
+        int height = (int)ceil(textSize.height) + 4;
+        
+        if (width <= 0 || height <= 0) return;
+        
+        // Create bitmap context with premultiplied alpha
+        CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
+        unsigned char* bitmapData = (unsigned char*)calloc(width * height * 4, sizeof(unsigned char));
+        CGContextRef context = CGBitmapContextCreate(bitmapData, width, height, 8, width * 4,
+                                                     colorSpace, kCGImageAlphaPremultipliedLast);
+        
+        // Clear to transparent
+        CGContextClearRect(context, CGRectMake(0, 0, width, height));
+        
+        // Flip context for correct text orientation
+        CGContextTranslateCTM(context, 0, height);
+        CGContextScaleCTM(context, 1.0, -1.0);
+        
+        // Draw text in white (will be tinted by vertex color in shader)
+        NSGraphicsContext* nsContext = [NSGraphicsContext graphicsContextWithCGContext:context flipped:YES];
+        [NSGraphicsContext saveGraphicsState];
+        [NSGraphicsContext setCurrentContext:nsContext];
+        
+        NSDictionary* drawAttributes = @{
+            NSFontAttributeName: font,
+            NSForegroundColorAttributeName: [NSColor whiteColor]
+        };
+        
+        [nsText drawAtPoint:NSMakePoint(2, 2) withAttributes:drawAttributes];
+        
+        [NSGraphicsContext restoreGraphicsState];
+        
+        // Create Metal texture from bitmap
+        id<MTLDevice> device = (__bridge id<MTLDevice>)device_;
+        MTLTextureDescriptor* texDesc = [MTLTextureDescriptor 
+            texture2DDescriptorWithPixelFormat:MTLPixelFormatRGBA8Unorm
+            width:width
+            height:height
+            mipmapped:NO];
+        texDesc.usage = MTLTextureUsageShaderRead;
+        
+        id<MTLTexture> texture = [device newTextureWithDescriptor:texDesc];
+        MTLRegion region = MTLRegionMake2D(0, 0, width, height);
+        [texture replaceRegion:region mipmapLevel:0 withBytes:bitmapData bytesPerRow:width * 4];
+        
+        // Cleanup bitmap
+        CGContextRelease(context);
+        CGColorSpaceRelease(colorSpace);
+        free(bitmapData);
+        
+        // Create vertices for text quad with flipped texture coordinates
+        float hw = width * 0.5f;
+        float hh = height * 0.5f;
+        
+        Vertex vertices[] = {
+            {{-hw, -hh}, {r, g, b, a}, {0.0f, 1.0f}},  // Top-left (flip V)
+            {{ hw, -hh}, {r, g, b, a}, {1.0f, 1.0f}},  // Top-right (flip V)
+            {{-hw,  hh}, {r, g, b, a}, {0.0f, 0.0f}},  // Bottom-left (flip V)
+            {{ hw, -hh}, {r, g, b, a}, {1.0f, 1.0f}},  // Top-right (flip V)
+            {{ hw,  hh}, {r, g, b, a}, {1.0f, 0.0f}},  // Bottom-right (flip V)
+            {{-hw,  hh}, {r, g, b, a}, {0.0f, 0.0f}},  // Bottom-left (flip V)
+        };
+        
+        // Create vertex buffer
+        id<MTLBuffer> vertexBuffer = [device 
+            newBufferWithBytes:vertices 
+            length:sizeof(vertices) 
+            options:MTLResourceStorageModeShared];
+        
+        // Create uniform buffer with MVP matrix
+        id<MTLBuffer> uniformBuffer = [device
+            newBufferWithBytes:mvpMatrix
+            length:sizeof(float) * 16
+            options:MTLResourceStorageModeShared];
+        
+        id<MTLRenderCommandEncoder> renderEncoder = (__bridge id<MTLRenderCommandEncoder>)renderEncoder_;
+        [renderEncoder setVertexBuffer:vertexBuffer offset:0 atIndex:0];
+        [renderEncoder setVertexBuffer:uniformBuffer offset:0 atIndex:1];
+        
+        // Set texture and sampler
+        MTLSamplerDescriptor* samplerDesc = [[MTLSamplerDescriptor alloc] init];
+        samplerDesc.minFilter = MTLSamplerMinMagFilterLinear;
+        samplerDesc.magFilter = MTLSamplerMinMagFilterLinear;
+        samplerDesc.sAddressMode = MTLSamplerAddressModeClampToEdge;
+        samplerDesc.tAddressMode = MTLSamplerAddressModeClampToEdge;
+        id<MTLSamplerState> sampler = [device newSamplerStateWithDescriptor:samplerDesc];
+        
+        [renderEncoder setFragmentTexture:texture atIndex:0];
+        [renderEncoder setFragmentSamplerState:sampler atIndex:0];
         
         [renderEncoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:6];
     }

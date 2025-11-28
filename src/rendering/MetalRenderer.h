@@ -23,6 +23,7 @@ public:
 private:
     void setupShaders();
     void renderRectangle(class Rectangle* rect, const float* mvpMatrix);
+    void renderText(class Text* text, const float* mvpMatrix);
     void renderFrame3D(Frame3D* frame, const float* viewProjMatrix);
     void renderObject2D(Object2D* object, const float* mvpMatrix);
     

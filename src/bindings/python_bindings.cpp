@@ -9,6 +9,8 @@
 #include "../rendering/Shape2D.h"
 #include "../rendering/Renderer.h"
 #include "../rendering/Image.h"
+#include "../rendering/Font.h"
+#include "../rendering/Text.h"
 
 namespace py = pybind11;
 using namespace CyberUI;
@@ -169,4 +171,43 @@ PYBIND11_MODULE(cyber_ui_core, m) {
             rect.getSize(w, h);
             return py::make_tuple(w, h);
         });
+
+    // Font class
+    py::class_<Font, std::shared_ptr<Font>>(m, "Font")
+        .def(py::init<>())
+        .def("load_from_file", &Font::loadFromFile,
+             py::arg("file_path"), py::arg("size") = 16.0f)
+        .def("set_size", &Font::setSize)
+        .def("get_size", &Font::getSize)
+        .def("get_file_path", &Font::getFilePath)
+        .def("is_loaded", &Font::isLoaded)
+        .def("set_bold", &Font::setBold)
+        .def("is_bold", &Font::isBold)
+        .def("set_italic", &Font::setItalic)
+        .def("is_italic", &Font::isItalic);
+
+    // Text class
+    py::class_<Text, Object2D, std::shared_ptr<Text>>(m, "Text")
+        .def(py::init<const std::string&>(), py::arg("text") = "")
+        .def("set_text", &Text::setText)
+        .def("get_text", &Text::getText)
+        .def("set_font", &Text::setFont)
+        .def("get_font", &Text::getFont)
+        .def("has_font", &Text::hasFont)
+        .def("set_color", &Text::setColor,
+             py::arg("r"), py::arg("g"), py::arg("b"), py::arg("a") = 1.0f)
+        .def("get_color", [](const Text& text) {
+            float r, g, b, a;
+            text.getColor(r, g, b, a);
+            return py::make_tuple(r, g, b, a);
+        })
+        .def("set_alignment", &Text::setAlignment)
+        .def("get_alignment", &Text::getAlignment);
+
+    // Text alignment enum
+    py::enum_<Text::Alignment>(m, "TextAlignment")
+        .value("Left", Text::Alignment::Left)
+        .value("Center", Text::Alignment::Center)
+        .value("Right", Text::Alignment::Right)
+        .export_values();
 }

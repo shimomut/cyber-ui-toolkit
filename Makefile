@@ -20,7 +20,7 @@ LDFLAGS := -shared -undefined dynamic_lookup -framework Metal -framework MetalKi
 
 # Source files
 CORE_SOURCES := $(SRC_DIR)/core/Object2D.cpp $(SRC_DIR)/core/Frame3D.cpp $(SRC_DIR)/core/Frame2D.cpp $(SRC_DIR)/core/Camera.cpp $(SRC_DIR)/core/SceneRoot.cpp
-RENDERING_SOURCES := $(SRC_DIR)/rendering/Shape2D.cpp $(SRC_DIR)/rendering/Image.cpp
+RENDERING_SOURCES := $(SRC_DIR)/rendering/Shape2D.cpp $(SRC_DIR)/rendering/Image.cpp $(SRC_DIR)/rendering/Font.cpp $(SRC_DIR)/rendering/Text.cpp
 METAL_SOURCES := $(SRC_DIR)/rendering/MetalRenderer.mm
 BINDING_SOURCES := $(SRC_DIR)/bindings/python_bindings.cpp
 ALL_CPP_SOURCES := $(CORE_SOURCES) $(RENDERING_SOURCES) $(BINDING_SOURCES)
@@ -83,6 +83,11 @@ run-hierarchy: build
 	@echo "Running hierarchy demo sample..."
 	@cd samples/basic && $(PYTHON) hierarchy_demo.py
 
+# Run text demo sample
+run-text: build
+	@echo "Running text demo sample..."
+	@cd samples/basic && $(PYTHON) text_demo.py
+
 # Rebuild from scratch
 rebuild: clean build
 
@@ -97,5 +102,6 @@ help:
 	@echo "  make check-deps    - Check if dependencies are installed"
 	@echo "  make run-basic     - Build and run basic shape2d sample"
 	@echo "  make run-hierarchy - Build and run hierarchy demo sample"
+	@echo "  make run-text      - Build and run text rendering demo sample"
 	@echo "  make help          - Show this help message"
 	@echo ""

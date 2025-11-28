@@ -2,12 +2,27 @@
 #include <pybind11/stl.h>
 #include "../core/Object3D.h"
 #include "../rendering/Shape2D.h"
+#include "../rendering/Renderer.h"
 
 namespace py = pybind11;
 using namespace CyberUI;
 
 PYBIND11_MODULE(cyber_ui_core, m) {
     m.doc() = "Cyber UI Toolkit - Graphics Primitive Rendering Layer";
+
+    // Renderer class
+    py::class_<Renderer>(m, "Renderer")
+        .def("initialize", &Renderer::initialize)
+        .def("shutdown", &Renderer::shutdown)
+        .def("begin_frame", &Renderer::beginFrame)
+        .def("end_frame", &Renderer::endFrame)
+        .def("render_object", &Renderer::renderObject)
+        .def("should_close", &Renderer::shouldClose)
+        .def("poll_events", &Renderer::pollEvents);
+
+    // Factory function
+    m.def("create_metal_renderer", &createMetalRenderer,
+          "Create a Metal-based renderer for macOS");
 
     // Object3D base class
     py::class_<Object3D, std::shared_ptr<Object3D>>(m, "Object3D")

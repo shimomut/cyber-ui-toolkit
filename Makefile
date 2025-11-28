@@ -14,17 +14,22 @@ OBJ_DIR := $(BUILD_DIR)/obj
 
 # Compiler flags
 CXXFLAGS := -std=c++17 -O3 -Wall -fPIC
+OBJCXXFLAGS := -std=c++17 -O3 -Wall -fPIC -fobjc-arc
 INCLUDES := -I$(SRC_DIR) -I$(PYTHON_INCLUDE) $(PYBIND11_INCLUDE)
-LDFLAGS := -shared -undefined dynamic_lookup
+LDFLAGS := -shared -undefined dynamic_lookup -framework Metal -framework MetalKit -framework Cocoa -framework QuartzCore
 
 # Source files
 CORE_SOURCES := $(SRC_DIR)/core/Object3D.cpp
 RENDERING_SOURCES := $(SRC_DIR)/rendering/Shape2D.cpp
+METAL_SOURCES := $(SRC_DIR)/rendering/MetalRenderer.mm
 BINDING_SOURCES := $(SRC_DIR)/bindings/python_bindings.cpp
-ALL_SOURCES := $(CORE_SOURCES) $(RENDERING_SOURCES) $(BINDING_SOURCES)
+ALL_CPP_SOURCES := $(CORE_SOURCES) $(RENDERING_SOURCES) $(BINDING_SOURCES)
+ALL_MM_SOURCES := $(METAL_SOURCES)
 
 # Object files
-OBJECTS := $(patsubst $(SRC_DIR)/%.cpp,$(OBJ_DIR)/%.o,$(ALL_SOURCES))
+CPP_OBJECTS := $(patsubst $(SRC_DIR)/%.cpp,$(OBJ_DIR)/%.o,$(ALL_CPP_SOURCES))
+MM_OBJECTS := $(patsubst $(SRC_DIR)/%.mm,$(OBJ_DIR)/%.o,$(ALL_MM_SOURCES))
+OBJECTS := $(CPP_OBJECTS) $(MM_OBJECTS)
 
 # Output library
 TARGET := $(BUILD_DIR)/cyber_ui_core$(PYTHON_EXT_SUFFIX)
@@ -45,6 +50,11 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp
 	@echo "Compiling $<..."
 	@mkdir -p $(dir $@)
 	@$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
+
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.mm
+	@echo "Compiling $<..."
+	@mkdir -p $(dir $@)
+	@$(CXX) $(OBJCXXFLAGS) $(INCLUDES) -c $< -o $@
 
 # Clean build artifacts
 clean:

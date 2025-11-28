@@ -85,6 +85,27 @@ PYTHONPATH=../../build python3 test_texture_demo.py
 - Rendering information for each rectangle
 - Summary statistics
 
+### verify_textures.py
+
+Visual verification script that opens a window showing all test textures.
+
+**Features demonstrated:**
+- Original textures (gradient, checkerboard, icon)
+- Color tinting (red, green, blue)
+- Solid color rectangles
+- Alpha blending with transparency
+
+**Run:**
+```bash
+PYTHONPATH=../../build python3 verify_textures.py
+```
+
+**What you'll see:**
+- Top row: Gradient (256x256), Checkerboard (128x128), Icon (64x64)
+- Bottom row: Red, green, blue tinted checkerboards + orange solid rectangle
+
+Press ESC or close the window to exit.
+
 ## Code Structure
 
 ### Loading Images

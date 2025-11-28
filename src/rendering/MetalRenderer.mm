@@ -1,5 +1,6 @@
 #import "MetalRenderer.h"
 #import "Shape2D.h"
+#import "Image.h"
 #import <Metal/Metal.h>
 #import <MetalKit/MetalKit.h>
 #import <Cocoa/Cocoa.h>
@@ -10,6 +11,7 @@ namespace CyberUI {
 struct Vertex {
     float position[2];
     float color[4];
+    float texCoord[2];
 };
 
 MetalRenderer::MetalRenderer() 
@@ -83,22 +85,30 @@ void MetalRenderer::setupShaders() {
             struct Vertex {
                 float2 position [[attribute(0)]];
                 float4 color [[attribute(1)]];
+                float2 texCoord [[attribute(2)]];
             };
             
             struct VertexOut {
                 float4 position [[position]];
                 float4 color;
+                float2 texCoord;
             };
             
             vertex VertexOut vertex_main(Vertex in [[stage_in]]) {
                 VertexOut out;
                 out.position = float4(in.position, 0.0, 1.0);
                 out.color = in.color;
+                out.texCoord = in.texCoord;
                 return out;
             }
             
-            fragment float4 fragment_main(VertexOut in [[stage_in]]) {
-                return in.color;
+            fragment float4 fragment_main(VertexOut in [[stage_in]],
+                                         texture2d<float> tex [[texture(0)]],
+                                         sampler texSampler [[sampler(0)]]) {
+                // Sample texture if available, otherwise use vertex color
+                float4 texColor = tex.sample(texSampler, in.texCoord);
+                // Multiply texture color by vertex color (allows tinting)
+                return texColor * in.color;
             }
         )";
         
@@ -115,13 +125,20 @@ void MetalRenderer::setupShaders() {
         
         // Create vertex descriptor
         MTLVertexDescriptor* vertexDesc = [[MTLVertexDescriptor alloc] init];
+        // Position
         vertexDesc.attributes[0].format = MTLVertexFormatFloat2;
         vertexDesc.attributes[0].offset = 0;
         vertexDesc.attributes[0].bufferIndex = 0;
         
+        // Color
         vertexDesc.attributes[1].format = MTLVertexFormatFloat4;
         vertexDesc.attributes[1].offset = sizeof(float) * 2;
         vertexDesc.attributes[1].bufferIndex = 0;
+        
+        // TexCoord
+        vertexDesc.attributes[2].format = MTLVertexFormatFloat2;
+        vertexDesc.attributes[2].offset = sizeof(float) * 6;
+        vertexDesc.attributes[2].bufferIndex = 0;
         
         vertexDesc.layouts[0].stride = sizeof(Vertex);
         vertexDesc.layouts[0].stepFunction = MTLVertexStepFunctionPerVertex;
@@ -132,6 +149,15 @@ void MetalRenderer::setupShaders() {
         pipelineDesc.fragmentFunction = fragmentFunc;
         pipelineDesc.vertexDescriptor = vertexDesc;
         pipelineDesc.colorAttachments[0].pixelFormat = MTLPixelFormatBGRA8Unorm;
+        
+        // Enable alpha blending for transparency
+        pipelineDesc.colorAttachments[0].blendingEnabled = YES;
+        pipelineDesc.colorAttachments[0].rgbBlendOperation = MTLBlendOperationAdd;
+        pipelineDesc.colorAttachments[0].alphaBlendOperation = MTLBlendOperationAdd;
+        pipelineDesc.colorAttachments[0].sourceRGBBlendFactor = MTLBlendFactorSourceAlpha;
+        pipelineDesc.colorAttachments[0].sourceAlphaBlendFactor = MTLBlendFactorSourceAlpha;
+        pipelineDesc.colorAttachments[0].destinationRGBBlendFactor = MTLBlendFactorOneMinusSourceAlpha;
+        pipelineDesc.colorAttachments[0].destinationAlphaBlendFactor = MTLBlendFactorOneMinusSourceAlpha;
         
         id<MTLRenderPipelineState> pipelineState = [device 
             newRenderPipelineStateWithDescriptor:pipelineDesc error:&error];
@@ -247,14 +273,14 @@ void MetalRenderer::renderRectangle(Rectangle* rect) {
         float x2 = ((x + width) / viewWidth) * 2.0f - 1.0f;
         float y2 = 1.0f - ((y + height) / viewHeight) * 2.0f;
         
-        // Create vertices for rectangle (2 triangles)
+        // Create vertices for rectangle (2 triangles) with texture coordinates
         Vertex vertices[] = {
-            {{x1, y1}, {r, g, b, a}},  // Top-left
-            {{x2, y1}, {r, g, b, a}},  // Top-right
-            {{x1, y2}, {r, g, b, a}},  // Bottom-left
-            {{x2, y1}, {r, g, b, a}},  // Top-right
-            {{x2, y2}, {r, g, b, a}},  // Bottom-right
-            {{x1, y2}, {r, g, b, a}},  // Bottom-left
+            {{x1, y1}, {r, g, b, a}, {0.0f, 0.0f}},  // Top-left
+            {{x2, y1}, {r, g, b, a}, {1.0f, 0.0f}},  // Top-right
+            {{x1, y2}, {r, g, b, a}, {0.0f, 1.0f}},  // Bottom-left
+            {{x2, y1}, {r, g, b, a}, {1.0f, 0.0f}},  // Top-right
+            {{x2, y2}, {r, g, b, a}, {1.0f, 1.0f}},  // Bottom-right
+            {{x1, y2}, {r, g, b, a}, {0.0f, 1.0f}},  // Bottom-left
         };
         
         // Create vertex buffer
@@ -264,9 +290,67 @@ void MetalRenderer::renderRectangle(Rectangle* rect) {
             length:sizeof(vertices) 
             options:MTLResourceStorageModeShared];
         
-        // Draw
         id<MTLRenderCommandEncoder> renderEncoder = (__bridge id<MTLRenderCommandEncoder>)renderEncoder_;
         [renderEncoder setVertexBuffer:vertexBuffer offset:0 atIndex:0];
+        
+        // Check if rectangle has a texture
+        if (rect->hasImage()) {
+            auto image = rect->getImage();
+            if (image && image->isLoaded()) {
+                // Create Metal texture from image data
+                MTLTextureDescriptor* texDesc = [MTLTextureDescriptor 
+                    texture2DDescriptorWithPixelFormat:MTLPixelFormatRGBA8Unorm
+                    width:image->getWidth()
+                    height:image->getHeight()
+                    mipmapped:NO];
+                texDesc.usage = MTLTextureUsageShaderRead;
+                
+                id<MTLTexture> texture = [device newTextureWithDescriptor:texDesc];
+                
+                // Upload image data to texture
+                MTLRegion region = MTLRegionMake2D(0, 0, image->getWidth(), image->getHeight());
+                NSUInteger bytesPerRow = 4 * image->getWidth();
+                [texture replaceRegion:region
+                           mipmapLevel:0
+                             withBytes:image->getData()
+                           bytesPerRow:bytesPerRow];
+                
+                // Create sampler
+                MTLSamplerDescriptor* samplerDesc = [[MTLSamplerDescriptor alloc] init];
+                samplerDesc.minFilter = MTLSamplerMinMagFilterLinear;
+                samplerDesc.magFilter = MTLSamplerMinMagFilterLinear;
+                samplerDesc.sAddressMode = MTLSamplerAddressModeClampToEdge;
+                samplerDesc.tAddressMode = MTLSamplerAddressModeClampToEdge;
+                id<MTLSamplerState> sampler = [device newSamplerStateWithDescriptor:samplerDesc];
+                
+                // Bind texture and sampler
+                [renderEncoder setFragmentTexture:texture atIndex:0];
+                [renderEncoder setFragmentSamplerState:sampler atIndex:0];
+            }
+        } else {
+            // No texture - create a white 1x1 texture so shader works
+            MTLTextureDescriptor* texDesc = [MTLTextureDescriptor 
+                texture2DDescriptorWithPixelFormat:MTLPixelFormatRGBA8Unorm
+                width:1
+                height:1
+                mipmapped:NO];
+            texDesc.usage = MTLTextureUsageShaderRead;
+            
+            id<MTLTexture> texture = [device newTextureWithDescriptor:texDesc];
+            uint8_t whitePixel[4] = {255, 255, 255, 255};
+            MTLRegion region = MTLRegionMake2D(0, 0, 1, 1);
+            [texture replaceRegion:region mipmapLevel:0 withBytes:whitePixel bytesPerRow:4];
+            
+            MTLSamplerDescriptor* samplerDesc = [[MTLSamplerDescriptor alloc] init];
+            samplerDesc.minFilter = MTLSamplerMinMagFilterLinear;
+            samplerDesc.magFilter = MTLSamplerMinMagFilterLinear;
+            id<MTLSamplerState> sampler = [device newSamplerStateWithDescriptor:samplerDesc];
+            
+            [renderEncoder setFragmentTexture:texture atIndex:0];
+            [renderEncoder setFragmentSamplerState:sampler atIndex:0];
+        }
+        
+        // Draw
         [renderEncoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:6];
     }
 }

@@ -22,7 +22,8 @@ struct Vertex {
 MetalRenderer::MetalRenderer() 
     : device_(nullptr), commandQueue_(nullptr), pipelineState_(nullptr),
       window_(nullptr), metalView_(nullptr), commandBuffer_(nullptr), renderEncoder_(nullptr),
-      initialized_(false), shouldClose_(false), windowWidth_(800), windowHeight_(600) {
+      initialized_(false), shouldClose_(false), windowWidth_(800), windowHeight_(600),
+      newTexturesCreatedThisFrame_(false) {
 }
 
 MetalRenderer::~MetalRenderer() {
@@ -189,6 +190,21 @@ void MetalRenderer::setupShaders() {
 void MetalRenderer::shutdown() {
     if (initialized_) {
         @autoreleasepool {
+            // Clean up texture cache
+            for (auto& pair : textureCache_) {
+                if (pair.second) {
+                    (void)(__bridge_transfer id<MTLTexture>)pair.second;
+                }
+            }
+            textureCache_.clear();
+            
+            for (auto& pair : textTextureCache_) {
+                if (pair.second) {
+                    (void)(__bridge_transfer id<MTLTexture>)pair.second;
+                }
+            }
+            textTextureCache_.clear();
+            
             if (window_) {
                 NSWindow* window = (__bridge_transfer NSWindow*)window_;
                 [window close];
@@ -217,6 +233,9 @@ void MetalRenderer::shutdown() {
 
 bool MetalRenderer::beginFrame() {
     if (!initialized_) return false;
+    
+    // Reset texture creation flag for this frame
+    newTexturesCreatedThisFrame_ = false;
     
     @autoreleasepool {
         id<MTLCommandQueue> commandQueue = (__bridge id<MTLCommandQueue>)commandQueue_;
@@ -249,6 +268,14 @@ void MetalRenderer::endFrame() {
         id<MTLCommandBuffer> commandBuffer = (__bridge_transfer id<MTLCommandBuffer>)commandBuffer_;
         [commandBuffer presentDrawable:[view currentDrawable]];
         [commandBuffer commit];
+        
+        // CRITICAL: Only wait for GPU if new textures were created this frame
+        // This prevents textures from being deallocated while GPU is still using them.
+        // Cached textures don't need synchronization since they persist across frames.
+        if (newTexturesCreatedThisFrame_) {
+            [commandBuffer waitUntilCompleted];
+        }
+        
         commandBuffer_ = nullptr;
     }
 }
@@ -403,12 +430,12 @@ void MetalRenderer::renderRectangle(Rectangle* rect, const float* mvpMatrix) {
         float hh = height * 0.5f;
         
         Vertex vertices[] = {
-            {{-hw, -hh}, {r, g, b, a}, {0.0f, 0.0f}},  // Top-left
-            {{ hw, -hh}, {r, g, b, a}, {1.0f, 0.0f}},  // Top-right
-            {{-hw,  hh}, {r, g, b, a}, {0.0f, 1.0f}},  // Bottom-left
-            {{ hw, -hh}, {r, g, b, a}, {1.0f, 0.0f}},  // Top-right
-            {{ hw,  hh}, {r, g, b, a}, {1.0f, 1.0f}},  // Bottom-right
-            {{-hw,  hh}, {r, g, b, a}, {0.0f, 1.0f}},  // Bottom-left
+            {{-hw, -hh}, {r, g, b, a}, {0.0f, 1.0f}},  // Top-left (flip V)
+            {{ hw, -hh}, {r, g, b, a}, {1.0f, 1.0f}},  // Top-right (flip V)
+            {{-hw,  hh}, {r, g, b, a}, {0.0f, 0.0f}},  // Bottom-left (flip V)
+            {{ hw, -hh}, {r, g, b, a}, {1.0f, 1.0f}},  // Top-right (flip V)
+            {{ hw,  hh}, {r, g, b, a}, {1.0f, 0.0f}},  // Bottom-right (flip V)
+            {{-hw,  hh}, {r, g, b, a}, {0.0f, 0.0f}},  // Bottom-left (flip V)
         };
         
         // Create vertex buffer
@@ -428,57 +455,45 @@ void MetalRenderer::renderRectangle(Rectangle* rect, const float* mvpMatrix) {
         [renderEncoder setVertexBuffer:vertexBuffer offset:0 atIndex:0];
         [renderEncoder setVertexBuffer:uniformBuffer offset:0 atIndex:1];
         
-        // Handle texture (same as before)
+        // Handle texture with caching
+        id<MTLTexture> texture = nil;
         if (rect->hasImage()) {
             auto image = rect->getImage();
             if (image && image->isLoaded()) {
+                texture = (__bridge id<MTLTexture>)getOrCreateTexture(image.get());
+            }
+        }
+        
+        if (!texture) {
+            // Use white 1x1 texture for non-textured rectangles
+            static void* whiteTexture = nullptr;
+            if (!whiteTexture) {
                 MTLTextureDescriptor* texDesc = [MTLTextureDescriptor 
                     texture2DDescriptorWithPixelFormat:MTLPixelFormatRGBA8Unorm
-                    width:image->getWidth()
-                    height:image->getHeight()
+                    width:1
+                    height:1
                     mipmapped:NO];
                 texDesc.usage = MTLTextureUsageShaderRead;
+                texDesc.storageMode = MTLStorageModeShared;
                 
-                id<MTLTexture> texture = [device newTextureWithDescriptor:texDesc];
-                
-                MTLRegion region = MTLRegionMake2D(0, 0, image->getWidth(), image->getHeight());
-                NSUInteger bytesPerRow = 4 * image->getWidth();
-                [texture replaceRegion:region
-                           mipmapLevel:0
-                             withBytes:image->getData()
-                           bytesPerRow:bytesPerRow];
-                
-                MTLSamplerDescriptor* samplerDesc = [[MTLSamplerDescriptor alloc] init];
-                samplerDesc.minFilter = MTLSamplerMinMagFilterLinear;
-                samplerDesc.magFilter = MTLSamplerMinMagFilterLinear;
-                samplerDesc.sAddressMode = MTLSamplerAddressModeClampToEdge;
-                samplerDesc.tAddressMode = MTLSamplerAddressModeClampToEdge;
-                id<MTLSamplerState> sampler = [device newSamplerStateWithDescriptor:samplerDesc];
-                
-                [renderEncoder setFragmentTexture:texture atIndex:0];
-                [renderEncoder setFragmentSamplerState:sampler atIndex:0];
+                id<MTLTexture> tex = [device newTextureWithDescriptor:texDesc];
+                uint8_t whitePixel[4] = {255, 255, 255, 255};
+                MTLRegion region = MTLRegionMake2D(0, 0, 1, 1);
+                [tex replaceRegion:region mipmapLevel:0 withBytes:whitePixel bytesPerRow:4];
+                whiteTexture = (__bridge_retained void*)tex;
             }
-        } else {
-            MTLTextureDescriptor* texDesc = [MTLTextureDescriptor 
-                texture2DDescriptorWithPixelFormat:MTLPixelFormatRGBA8Unorm
-                width:1
-                height:1
-                mipmapped:NO];
-            texDesc.usage = MTLTextureUsageShaderRead;
-            
-            id<MTLTexture> texture = [device newTextureWithDescriptor:texDesc];
-            uint8_t whitePixel[4] = {255, 255, 255, 255};
-            MTLRegion region = MTLRegionMake2D(0, 0, 1, 1);
-            [texture replaceRegion:region mipmapLevel:0 withBytes:whitePixel bytesPerRow:4];
-            
-            MTLSamplerDescriptor* samplerDesc = [[MTLSamplerDescriptor alloc] init];
-            samplerDesc.minFilter = MTLSamplerMinMagFilterLinear;
-            samplerDesc.magFilter = MTLSamplerMinMagFilterLinear;
-            id<MTLSamplerState> sampler = [device newSamplerStateWithDescriptor:samplerDesc];
-            
-            [renderEncoder setFragmentTexture:texture atIndex:0];
-            [renderEncoder setFragmentSamplerState:sampler atIndex:0];
+            texture = (__bridge id<MTLTexture>)whiteTexture;
         }
+        
+        MTLSamplerDescriptor* samplerDesc = [[MTLSamplerDescriptor alloc] init];
+        samplerDesc.minFilter = MTLSamplerMinMagFilterLinear;
+        samplerDesc.magFilter = MTLSamplerMinMagFilterLinear;
+        samplerDesc.sAddressMode = MTLSamplerAddressModeClampToEdge;
+        samplerDesc.tAddressMode = MTLSamplerAddressModeClampToEdge;
+        id<MTLSamplerState> sampler = [device newSamplerStateWithDescriptor:samplerDesc];
+        
+        [renderEncoder setFragmentTexture:texture atIndex:0];
+        [renderEncoder setFragmentSamplerState:sampler atIndex:0];
         
         [renderEncoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:6];
     }
@@ -486,80 +501,100 @@ void MetalRenderer::renderRectangle(Rectangle* rect, const float* mvpMatrix) {
 
 void MetalRenderer::renderText(Text* text, const float* mvpMatrix) {
     @autoreleasepool {
-        // Render text using Core Text to generate a texture
-        
         float r, g, b, a;
         text->getColor(r, g, b, a);
         
         float fontSize = 24.0f;
+        bool isBold = false;
         if (text->hasFont()) {
             fontSize = text->getFont()->getSize();
+            isBold = text->getFont()->isBold();
         }
         
         std::string textStr = text->getText();
         if (textStr.empty()) return;
         
-        NSString* nsText = [NSString stringWithUTF8String:textStr.c_str()];
+        // Create cache key
+        std::string cacheKey = textStr + "|" + std::to_string(fontSize) + "|" + (isBold ? "B" : "R");
         
-        // Create font
-        NSFont* font = [NSFont systemFontOfSize:fontSize];
-        if (text->hasFont() && text->getFont()->isBold()) {
-            font = [NSFont boldSystemFontOfSize:fontSize];
+        // Check cache
+        id<MTLTexture> texture = nil;
+        int width = 0, height = 0;
+        
+        auto it = textTextureCache_.find(cacheKey);
+        if (it != textTextureCache_.end()) {
+            texture = (__bridge id<MTLTexture>)it->second;
+            width = texture.width;
+            height = texture.height;
+        } else {
+            // Generate new texture
+            NSString* nsText = [NSString stringWithUTF8String:textStr.c_str()];
+            
+            // Create font
+            NSFont* font = isBold ? [NSFont boldSystemFontOfSize:fontSize] : [NSFont systemFontOfSize:fontSize];
+            
+            // Calculate text size
+            NSDictionary* attributes = @{NSFontAttributeName: font};
+            NSSize textSize = [nsText sizeWithAttributes:attributes];
+            
+            width = (int)ceil(textSize.width) + 4;  // Add padding
+            height = (int)ceil(textSize.height) + 4;
+            
+            if (width <= 0 || height <= 0) return;
+            
+            // Create bitmap context with premultiplied alpha
+            CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
+            unsigned char* bitmapData = (unsigned char*)calloc(width * height * 4, sizeof(unsigned char));
+            CGContextRef context = CGBitmapContextCreate(bitmapData, width, height, 8, width * 4,
+                                                         colorSpace, kCGImageAlphaPremultipliedLast);
+            
+            // Clear to transparent
+            CGContextClearRect(context, CGRectMake(0, 0, width, height));
+            
+            // Flip context for correct text orientation
+            CGContextTranslateCTM(context, 0, height);
+            CGContextScaleCTM(context, 1.0, -1.0);
+            
+            // Draw text in white (will be tinted by vertex color in shader)
+            NSGraphicsContext* nsContext = [NSGraphicsContext graphicsContextWithCGContext:context flipped:YES];
+            [NSGraphicsContext saveGraphicsState];
+            [NSGraphicsContext setCurrentContext:nsContext];
+            
+            NSDictionary* drawAttributes = @{
+                NSFontAttributeName: font,
+                NSForegroundColorAttributeName: [NSColor whiteColor]
+            };
+            
+            [nsText drawAtPoint:NSMakePoint(2, 2) withAttributes:drawAttributes];
+            
+            [NSGraphicsContext restoreGraphicsState];
+            
+            // Create Metal texture from bitmap
+            id<MTLDevice> device = (__bridge id<MTLDevice>)device_;
+            MTLTextureDescriptor* texDesc = [MTLTextureDescriptor 
+                texture2DDescriptorWithPixelFormat:MTLPixelFormatRGBA8Unorm
+                width:width
+                height:height
+                mipmapped:NO];
+            texDesc.usage = MTLTextureUsageShaderRead;
+            texDesc.storageMode = MTLStorageModeShared;
+            
+            texture = [device newTextureWithDescriptor:texDesc];
+            MTLRegion region = MTLRegionMake2D(0, 0, width, height);
+            [texture replaceRegion:region mipmapLevel:0 withBytes:bitmapData bytesPerRow:width * 4];
+            
+            // Cleanup bitmap
+            CGContextRelease(context);
+            CGColorSpaceRelease(colorSpace);
+            free(bitmapData);
+            
+            // Cache the texture
+            void* texturePtr = (__bridge_retained void*)texture;
+            textTextureCache_[cacheKey] = texturePtr;
+            
+            // Mark that we created a new texture this frame
+            newTexturesCreatedThisFrame_ = true;
         }
-        
-        // Calculate text size
-        NSDictionary* attributes = @{NSFontAttributeName: font};
-        NSSize textSize = [nsText sizeWithAttributes:attributes];
-        
-        int width = (int)ceil(textSize.width) + 4;  // Add padding
-        int height = (int)ceil(textSize.height) + 4;
-        
-        if (width <= 0 || height <= 0) return;
-        
-        // Create bitmap context with premultiplied alpha
-        CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
-        unsigned char* bitmapData = (unsigned char*)calloc(width * height * 4, sizeof(unsigned char));
-        CGContextRef context = CGBitmapContextCreate(bitmapData, width, height, 8, width * 4,
-                                                     colorSpace, kCGImageAlphaPremultipliedLast);
-        
-        // Clear to transparent
-        CGContextClearRect(context, CGRectMake(0, 0, width, height));
-        
-        // Flip context for correct text orientation
-        CGContextTranslateCTM(context, 0, height);
-        CGContextScaleCTM(context, 1.0, -1.0);
-        
-        // Draw text in white (will be tinted by vertex color in shader)
-        NSGraphicsContext* nsContext = [NSGraphicsContext graphicsContextWithCGContext:context flipped:YES];
-        [NSGraphicsContext saveGraphicsState];
-        [NSGraphicsContext setCurrentContext:nsContext];
-        
-        NSDictionary* drawAttributes = @{
-            NSFontAttributeName: font,
-            NSForegroundColorAttributeName: [NSColor whiteColor]
-        };
-        
-        [nsText drawAtPoint:NSMakePoint(2, 2) withAttributes:drawAttributes];
-        
-        [NSGraphicsContext restoreGraphicsState];
-        
-        // Create Metal texture from bitmap
-        id<MTLDevice> device = (__bridge id<MTLDevice>)device_;
-        MTLTextureDescriptor* texDesc = [MTLTextureDescriptor 
-            texture2DDescriptorWithPixelFormat:MTLPixelFormatRGBA8Unorm
-            width:width
-            height:height
-            mipmapped:NO];
-        texDesc.usage = MTLTextureUsageShaderRead;
-        
-        id<MTLTexture> texture = [device newTextureWithDescriptor:texDesc];
-        MTLRegion region = MTLRegionMake2D(0, 0, width, height);
-        [texture replaceRegion:region mipmapLevel:0 withBytes:bitmapData bytesPerRow:width * 4];
-        
-        // Cleanup bitmap
-        CGContextRelease(context);
-        CGColorSpaceRelease(colorSpace);
-        free(bitmapData);
         
         // Create vertices for text quad with flipped texture coordinates
         float hw = width * 0.5f;
@@ -575,6 +610,7 @@ void MetalRenderer::renderText(Text* text, const float* mvpMatrix) {
         };
         
         // Create vertex buffer
+        id<MTLDevice> device = (__bridge id<MTLDevice>)device_;
         id<MTLBuffer> vertexBuffer = [device 
             newBufferWithBytes:vertices 
             length:sizeof(vertices) 
@@ -602,6 +638,44 @@ void MetalRenderer::renderText(Text* text, const float* mvpMatrix) {
         [renderEncoder setFragmentSamplerState:sampler atIndex:0];
         
         [renderEncoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:6];
+    }
+}
+
+void* MetalRenderer::getOrCreateTexture(Image* image) {
+    if (!image || !image->isLoaded()) return nullptr;
+    
+    // Check cache first
+    auto it = textureCache_.find(image);
+    if (it != textureCache_.end()) {
+        return it->second;
+    }
+    
+    // Mark that we're creating a new texture this frame
+    newTexturesCreatedThisFrame_ = true;
+    
+    // Create new texture
+    @autoreleasepool {
+        id<MTLDevice> device = (__bridge id<MTLDevice>)device_;
+        MTLTextureDescriptor* texDesc = [MTLTextureDescriptor 
+            texture2DDescriptorWithPixelFormat:MTLPixelFormatRGBA8Unorm
+            width:image->getWidth()
+            height:image->getHeight()
+            mipmapped:NO];
+        texDesc.usage = MTLTextureUsageShaderRead;
+        texDesc.storageMode = MTLStorageModeShared;
+        
+        id<MTLTexture> texture = [device newTextureWithDescriptor:texDesc];
+        
+        MTLRegion region = MTLRegionMake2D(0, 0, image->getWidth(), image->getHeight());
+        NSUInteger bytesPerRow = 4 * image->getWidth();
+        [texture replaceRegion:region
+                   mipmapLevel:0
+                     withBytes:image->getData()
+                   bytesPerRow:bytesPerRow];
+        
+        void* texturePtr = (__bridge_retained void*)texture;
+        textureCache_[image] = texturePtr;
+        return texturePtr;
     }
 }
 
@@ -647,6 +721,151 @@ void MetalRenderer::createTransformMatrix(float x, float y, float z,
     matrix[13] = y;
     matrix[14] = z;
     matrix[15] = 1;
+}
+
+bool MetalRenderer::captureFrame(std::vector<uint8_t>& pixelData, int& width, int& height) {
+    if (!initialized_) {
+        return false;
+    }
+    
+    @autoreleasepool {
+        MTKView* metalView = (__bridge MTKView*)metalView_;
+        id<MTLTexture> drawable = metalView.currentDrawable.texture;
+        
+        if (!drawable) {
+            return false;
+        }
+        
+        width = (int)drawable.width;
+        height = (int)drawable.height;
+        
+        // Allocate buffer for pixel data (BGRA format, 4 bytes per pixel)
+        size_t bytesPerRow = width * 4;
+        size_t totalBytes = bytesPerRow * height;
+        pixelData.resize(totalBytes);
+        
+        // Create a blit command to copy texture to CPU-accessible buffer
+        id<MTLDevice> device = (__bridge id<MTLDevice>)device_;
+        id<MTLCommandQueue> commandQueue = (__bridge id<MTLCommandQueue>)commandQueue_;
+        
+        id<MTLCommandBuffer> commandBuffer = [commandQueue commandBuffer];
+        id<MTLBlitCommandEncoder> blitEncoder = [commandBuffer blitCommandEncoder];
+        
+        [blitEncoder copyFromTexture:drawable
+                         sourceSlice:0
+                         sourceLevel:0
+                        sourceOrigin:MTLOriginMake(0, 0, 0)
+                          sourceSize:MTLSizeMake(width, height, 1)
+                            toBuffer:[device newBufferWithLength:totalBytes 
+                                                         options:MTLResourceStorageModeShared]
+                   destinationOffset:0
+              destinationBytesPerRow:bytesPerRow
+            destinationBytesPerImage:totalBytes];
+        
+        [blitEncoder endEncoding];
+        [commandBuffer commit];
+        [commandBuffer waitUntilCompleted];
+        
+        // Get the buffer we just created
+        id<MTLBuffer> buffer = [device newBufferWithLength:totalBytes 
+                                                    options:MTLResourceStorageModeShared];
+        
+        // Copy again with proper buffer
+        commandBuffer = [commandQueue commandBuffer];
+        blitEncoder = [commandBuffer blitCommandEncoder];
+        
+        [blitEncoder copyFromTexture:drawable
+                         sourceSlice:0
+                         sourceLevel:0
+                        sourceOrigin:MTLOriginMake(0, 0, 0)
+                          sourceSize:MTLSizeMake(width, height, 1)
+                            toBuffer:buffer
+                   destinationOffset:0
+              destinationBytesPerRow:bytesPerRow
+            destinationBytesPerImage:totalBytes];
+        
+        [blitEncoder endEncoding];
+        [commandBuffer commit];
+        [commandBuffer waitUntilCompleted];
+        
+        // Copy data from Metal buffer to our vector
+        memcpy(pixelData.data(), [buffer contents], totalBytes);
+        
+        return true;
+    }
+}
+
+bool MetalRenderer::saveCapture(const char* filename) {
+    std::vector<uint8_t> pixelData;
+    int width, height;
+    
+    if (!captureFrame(pixelData, width, height)) {
+        return false;
+    }
+    
+    @autoreleasepool {
+        // Create CGImage from pixel data
+        CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
+        CGContextRef context = CGBitmapContextCreate(
+            pixelData.data(),
+            width,
+            height,
+            8,
+            width * 4,
+            colorSpace,
+            kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Little
+        );
+        
+        if (!context) {
+            CGColorSpaceRelease(colorSpace);
+            return false;
+        }
+        
+        CGImageRef imageRef = CGBitmapContextCreateImage(context);
+        CGContextRelease(context);
+        
+        if (!imageRef) {
+            CGColorSpaceRelease(colorSpace);
+            return false;
+        }
+        
+        // Save to file
+        NSString* path = [NSString stringWithUTF8String:filename];
+        NSURL* url = [NSURL fileURLWithPath:path];
+        
+        // Use modern UTType API if available, fallback to kUTTypePNG
+        CFStringRef imageType;
+        if (@available(macOS 11.0, *)) {
+            imageType = (__bridge CFStringRef)@"public.png";
+        } else {
+            #pragma clang diagnostic push
+            #pragma clang diagnostic ignored "-Wdeprecated-declarations"
+            imageType = kUTTypePNG;
+            #pragma clang diagnostic pop
+        }
+        
+        CGImageDestinationRef destination = CGImageDestinationCreateWithURL(
+            (__bridge CFURLRef)url,
+            imageType,
+            1,
+            NULL
+        );
+        
+        if (!destination) {
+            CGImageRelease(imageRef);
+            CGColorSpaceRelease(colorSpace);
+            return false;
+        }
+        
+        CGImageDestinationAddImage(destination, imageRef, NULL);
+        bool success = CGImageDestinationFinalize(destination);
+        
+        CFRelease(destination);
+        CGImageRelease(imageRef);
+        CGColorSpaceRelease(colorSpace);
+        
+        return success;
+    }
 }
 
 } // namespace CyberUI

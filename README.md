@@ -25,6 +25,7 @@ The library consists of two layers:
 - ✅ Image loading with Pillow integration
 - ✅ Texture mapping and color tinting
 - ✅ Scene graph with parent-child relationships
+- ✅ Frame capture system for debugging and testing
 - ✅ Python bindings for easy application development
 
 ## Quick Start
@@ -118,6 +119,7 @@ cyber-ui-toolkit/
 ## Documentation
 
 - [Project Structure](/.kiro/steering/project-structure.md) - Directory organization and conventions
+- [Capture System](/doc/CAPTURE_SYSTEM.md) - Frame capture for debugging and testing
 - [Basic Samples](/samples/basic/README.md) - Sample code documentation
 - [Test Images](/samples/data/README.md) - Test image documentation
 

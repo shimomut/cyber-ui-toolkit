@@ -88,6 +88,16 @@ run-text: build
 	@echo "Running text demo sample..."
 	@cd samples/basic && $(PYTHON) text_demo.py
 
+# Run capture demo sample
+run-capture: build
+	@echo "Running capture demo sample..."
+	@cd samples/basic && $(PYTHON) capture_demo.py
+
+# Run capture tests
+test-capture: build
+	@echo "Running capture system tests..."
+	@$(PYTHON) tests/test_capture.py
+
 # Rebuild from scratch
 rebuild: clean build
 
@@ -103,5 +113,7 @@ help:
 	@echo "  make run-basic     - Build and run basic shape2d sample"
 	@echo "  make run-hierarchy - Build and run hierarchy demo sample"
 	@echo "  make run-text      - Build and run text rendering demo sample"
+	@echo "  make run-capture   - Build and run capture demo sample"
+	@echo "  make test-capture  - Build and run capture system tests"
 	@echo "  make help          - Show this help message"
 	@echo ""

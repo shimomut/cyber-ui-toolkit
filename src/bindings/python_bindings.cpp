@@ -27,7 +27,19 @@ PYBIND11_MODULE(cyber_ui_core, m) {
         .def("render_object", &Renderer::renderObject)
         .def("render_scene", &Renderer::renderScene)
         .def("should_close", &Renderer::shouldClose)
-        .def("poll_events", &Renderer::pollEvents);
+        .def("poll_events", &Renderer::pollEvents)
+        .def("capture_frame", [](Renderer& renderer) {
+            std::vector<uint8_t> pixelData;
+            int width, height;
+            bool success = renderer.captureFrame(pixelData, width, height);
+            if (!success) {
+                return py::make_tuple(py::none(), 0, 0);
+            }
+            // Return as numpy-compatible bytes
+            py::bytes data(reinterpret_cast<const char*>(pixelData.data()), pixelData.size());
+            return py::make_tuple(data, width, height);
+        })
+        .def("save_capture", &Renderer::saveCapture);
 
     // Factory function
     m.def("create_metal_renderer", &createMetalRenderer,

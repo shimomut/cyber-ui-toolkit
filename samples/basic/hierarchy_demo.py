@@ -277,13 +277,23 @@ def main():
     
     # Render loop with 3D animation
     print("Starting render loop with 3D animation...")
-    print("Watch the panels rotate and move in 3D space!\n")
+    print("Watch the panels rotate and move in 3D space!")
+    print("Press SPACE to capture a frame, or ESC/close window to exit\n")
+    
+    # Create output directory for captures
+    output_dir = os.path.join(script_dir, "..", "output")
+    os.makedirs(output_dir, exist_ok=True)
+    
     frame_count = 0
+    capture_count = 0
+    
+    # Capture initial frame after a few frames to ensure everything is loaded
+    initial_capture_frame = 5
     
     while not renderer.should_close():
         renderer.poll_events()
         
-        time = frame_count * 0.01
+        time = frame_count * 0.001
         
         # Animate Frame3D rotations
         frame3d_left.set_rotation(0.0, 0.2 + math.sin(time) * 0.15, 0.0)
@@ -310,8 +320,70 @@ def main():
             
             renderer.end_frame()
             frame_count += 1
+            
+            # Auto-capture initial frame to verify rendering
+            if frame_count == initial_capture_frame:
+                capture_filename = os.path.join(output_dir, "hierarchy_demo_initial.png")
+                if renderer.save_capture(capture_filename):
+                    print(f"✓ Auto-captured initial frame: {capture_filename}")
+                    capture_count += 1
+                else:
+                    print("✗ Failed to capture initial frame")
+            
+            # Auto-capture every 120 frames (about every 2 seconds at 60fps)
+            if frame_count > initial_capture_frame and frame_count % 120 == 0:
+                capture_filename = os.path.join(output_dir, f"hierarchy_demo_frame_{frame_count:05d}.png")
+                if renderer.save_capture(capture_filename):
+                    print(f"✓ Captured frame {frame_count}: {capture_filename}")
+                    capture_count += 1
+    
+    # Capture final frame
+    print("\nCapturing final frame...")
+    final_filename = os.path.join(output_dir, "hierarchy_demo_final.png")
+    if renderer.save_capture(final_filename):
+        print(f"✓ Final frame saved: {final_filename}")
+        capture_count += 1
+    
+    # Demonstrate raw pixel data capture
+    print("\nCapturing raw pixel data for analysis...")
+    data, width, height = renderer.capture_frame()
+    
+    if data is not None:
+        print(f"✓ Captured {width}x{height} frame ({len(data)} bytes)")
+        print(f"  Format: BGRA (4 bytes per pixel)")
+        
+        # Analyze some pixels
+        import struct
+        pixels = struct.unpack(f'{len(data)}B', data)
+        
+        # Sample center pixel
+        center_x = width // 2
+        center_y = height // 2
+        center_offset = (center_y * width + center_x) * 4
+        
+        b = pixels[center_offset]
+        g = pixels[center_offset + 1]
+        r = pixels[center_offset + 2]
+        a = pixels[center_offset + 3]
+        
+        print(f"  Center pixel (BGRA): ({b}, {g}, {r}, {a})")
+        
+        # Calculate average color
+        total_r = sum(pixels[i+2] for i in range(0, len(pixels), 4))
+        total_g = sum(pixels[i+1] for i in range(0, len(pixels), 4))
+        total_b = sum(pixels[i] for i in range(0, len(pixels), 4))
+        
+        num_pixels = width * height
+        avg_r = total_r / num_pixels
+        avg_g = total_g / num_pixels
+        avg_b = total_b / num_pixels
+        
+        print(f"  Average color: R={avg_r:.1f}, G={avg_g:.1f}, B={avg_b:.1f}")
+    else:
+        print("✗ Failed to capture raw pixel data")
     
     print(f"\nRendered {frame_count} frames")
+    print(f"Captured {capture_count} images to {output_dir}")
     renderer.shutdown()
     print("Renderer shutdown complete")
 

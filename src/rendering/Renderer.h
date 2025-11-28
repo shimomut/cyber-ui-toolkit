@@ -1,6 +1,8 @@
 #pragma once
 
 #include <memory>
+#include <vector>
+#include <cstdint>
 
 namespace CyberUI {
 
@@ -25,6 +27,10 @@ public:
     
     virtual bool shouldClose() = 0;
     virtual void pollEvents() = 0;
+    
+    // Capture functionality for debugging and testing
+    virtual bool captureFrame(std::vector<uint8_t>& pixelData, int& width, int& height) = 0;
+    virtual bool saveCapture(const char* filename) = 0;
 };
 
 // Factory function

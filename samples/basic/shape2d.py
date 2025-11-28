@@ -8,7 +8,6 @@ sys.path.insert(0, '../../build')
 
 import cyber_ui_core as ui
 from PIL import Image as PILImage
-import numpy as np
 import os
 
 def load_image_with_pillow(filepath):
@@ -25,8 +24,8 @@ def load_image_with_pillow(filepath):
         if pil_img.mode != 'RGBA':
             pil_img = pil_img.convert('RGBA')
         
-        # Get image data as numpy array
-        img_array = np.array(pil_img, dtype=np.uint8)
+        # Get image data as bytes
+        img_bytes = pil_img.tobytes()
         
         # Create cyber_ui Image object
         ui_img = ui.Image()
@@ -34,7 +33,7 @@ def load_image_with_pillow(filepath):
         channels = 4  # RGBA
         
         # Load data into Image object
-        if ui_img.load_from_data(img_array, width, height, channels):
+        if ui_img.load_from_data(img_bytes, width, height, channels):
             print(f"Loaded image: {filepath} ({width}x{height}, {channels} channels)")
             return ui_img
         else:

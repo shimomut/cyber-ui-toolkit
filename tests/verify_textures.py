@@ -9,7 +9,6 @@ sys.path.insert(0, '../../build')
 
 import cyber_ui_core as ui
 from PIL import Image as PILImage
-import numpy as np
 import os
 
 def load_image_with_pillow(filepath):
@@ -23,11 +22,11 @@ def load_image_with_pillow(filepath):
         if pil_img.mode != 'RGBA':
             pil_img = pil_img.convert('RGBA')
         
-        img_array = np.array(pil_img, dtype=np.uint8)
+        img_bytes = pil_img.tobytes()
         ui_img = ui.Image()
         width, height = pil_img.size
         
-        if ui_img.load_from_data(img_array, width, height, 4):
+        if ui_img.load_from_data(img_bytes, width, height, 4):
             return ui_img
         return None
             

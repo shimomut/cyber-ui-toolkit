@@ -47,7 +47,8 @@ PYBIND11_MODULE(cyber_ui_core, m) {
     py::class_<Image, std::shared_ptr<Image>>(m, "Image")
         .def(py::init<>())
         .def("load_from_file", &Image::loadFromFile)
-        .def("load_from_data", [](Image& img, py::array_t<unsigned char> data, int width, int height, int channels) {
+        .def("load_from_data", [](Image& img, py::buffer data, int width, int height, int channels) {
+            // Accept any buffer-like object (bytes, bytearray, numpy array, etc.)
             py::buffer_info buf = data.request();
             return img.loadFromData(static_cast<unsigned char*>(buf.ptr), width, height, channels);
         })

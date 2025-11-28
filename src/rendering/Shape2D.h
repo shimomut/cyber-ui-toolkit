@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../core/Object3D.h"
+#include "../core/Object2D.h"
 #include <memory>
 
 namespace CyberUI {
@@ -8,7 +8,7 @@ namespace CyberUI {
 class Image;
 
 // Base class for 2D shapes
-class Shape2D : public Object3D {
+class Shape2D : public Object2D {
 public:
     Shape2D();
     virtual ~Shape2D() = default;

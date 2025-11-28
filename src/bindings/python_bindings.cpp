@@ -1,7 +1,9 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <pybind11/numpy.h>
-#include "../core/Object3D.h"
+#include "../core/Object2D.h"
+#include "../core/Frame3D.h"
+#include "../core/Frame2D.h"
 #include "../rendering/Shape2D.h"
 #include "../rendering/Renderer.h"
 #include "../rendering/Image.h"
@@ -26,22 +28,63 @@ PYBIND11_MODULE(cyber_ui_core, m) {
     m.def("create_metal_renderer", &createMetalRenderer,
           "Create a Metal-based renderer for macOS");
 
-    // Object3D base class
-    py::class_<Object3D, std::shared_ptr<Object3D>>(m, "Object3D")
-        .def("add_child", &Object3D::addChild)
-        .def("remove_child", &Object3D::removeChild)
-        .def("get_parent", &Object3D::getParent, py::return_value_policy::reference)
-        .def("set_position", &Object3D::setPosition)
-        .def("get_position", [](const Object3D& obj) {
+    // Frame3D - top-level 3D container
+    py::class_<Frame3D, std::shared_ptr<Frame3D>>(m, "Frame3D")
+        .def(py::init<>())
+        .def("add_child", &Frame3D::addChild)
+        .def("remove_child", &Frame3D::removeChild)
+        .def("set_position", &Frame3D::setPosition)
+        .def("get_position", [](const Frame3D& obj) {
             float x, y, z;
             obj.getPosition(x, y, z);
             return py::make_tuple(x, y, z);
         })
-        .def("set_visible", &Object3D::setVisible)
-        .def("is_visible", &Object3D::isVisible)
-        .def("set_name", &Object3D::setName)
-        .def("get_name", &Object3D::getName)
-        .def("render", &Object3D::render);
+        .def("set_rotation", &Frame3D::setRotation)
+        .def("get_rotation", [](const Frame3D& obj) {
+            float pitch, yaw, roll;
+            obj.getRotation(pitch, yaw, roll);
+            return py::make_tuple(pitch, yaw, roll);
+        })
+        .def("set_scale", &Frame3D::setScale)
+        .def("get_scale", [](const Frame3D& obj) {
+            float x, y, z;
+            obj.getScale(x, y, z);
+            return py::make_tuple(x, y, z);
+        })
+        .def("set_visible", &Frame3D::setVisible)
+        .def("is_visible", &Frame3D::isVisible)
+        .def("set_name", &Frame3D::setName)
+        .def("get_name", &Frame3D::getName)
+        .def("render", &Frame3D::render);
+
+    // Object2D base class for all 2D objects
+    py::class_<Object2D, std::shared_ptr<Object2D>>(m, "Object2D")
+        .def("add_child", &Object2D::addChild)
+        .def("remove_child", &Object2D::removeChild)
+        .def("get_parent", &Object2D::getParent, py::return_value_policy::reference)
+        .def("set_position", &Object2D::setPosition)
+        .def("get_position", [](const Object2D& obj) {
+            float x, y;
+            obj.getPosition(x, y);
+            return py::make_tuple(x, y);
+        })
+        .def("set_visible", &Object2D::setVisible)
+        .def("is_visible", &Object2D::isVisible)
+        .def("set_name", &Object2D::setName)
+        .def("get_name", &Object2D::getName)
+        .def("render", &Object2D::render);
+
+    // Frame2D - 2D container with clipping
+    py::class_<Frame2D, Object2D, std::shared_ptr<Frame2D>>(m, "Frame2D")
+        .def(py::init<>())
+        .def("set_size", &Frame2D::setSize)
+        .def("get_size", [](const Frame2D& frame) {
+            float w, h;
+            frame.getSize(w, h);
+            return py::make_tuple(w, h);
+        })
+        .def("set_clipping_enabled", &Frame2D::setClippingEnabled)
+        .def("is_clipping_enabled", &Frame2D::isClippingEnabled);
 
     // Image class (defined before Shape2D since Shape2D uses it)
     py::class_<Image, std::shared_ptr<Image>>(m, "Image")
@@ -59,7 +102,7 @@ PYBIND11_MODULE(cyber_ui_core, m) {
         .def("get_file_path", &Image::getFilePath);
 
     // Shape2D class
-    py::class_<Shape2D, Object3D, std::shared_ptr<Shape2D>>(m, "Shape2D")
+    py::class_<Shape2D, Object2D, std::shared_ptr<Shape2D>>(m, "Shape2D")
         .def(py::init<>())
         .def("set_color", &Shape2D::setColor, 
              py::arg("r"), py::arg("g"), py::arg("b"), py::arg("a") = 1.0f)

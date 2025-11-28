@@ -4,7 +4,7 @@
 
 namespace CyberUI {
 
-class Object3D;
+class Object2D;
 
 // Abstract renderer interface
 class Renderer {
@@ -15,7 +15,7 @@ public:
     virtual void shutdown() = 0;
     virtual bool beginFrame() = 0;
     virtual void endFrame() = 0;
-    virtual void renderObject(Object3D* object) = 0;
+    virtual void renderObject(Object2D* object) = 0;
     virtual bool shouldClose() = 0;
     virtual void pollEvents() = 0;
 };

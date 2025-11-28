@@ -50,13 +50,13 @@ void Rectangle::render() {
     if (!isVisible()) return;
 
     // Placeholder rendering - will be replaced with actual graphics API calls
-    float x, y, z;
-    getPosition(x, y, z);
+    float x, y;
+    getPosition(x, y);
     float r, g, b, a;
     getColor(r, g, b, a);
     
     std::cout << "Rendering Rectangle: " << getName() 
-              << " at (" << x << ", " << y << ", " << z << ")"
+              << " at (" << x << ", " << y << ")"
               << " size: " << width_ << "x" << height_
               << " color: (" << r << ", " << g << ", " << b << ", " << a << ")";
     

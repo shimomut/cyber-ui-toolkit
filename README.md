@@ -104,7 +104,7 @@ renderer.shutdown()
 ```
 cyber-ui-toolkit/
 ├── src/                    # C++ source code
-│   ├── core/              # Core components (Object3D)
+│   ├── core/              # Core components (Object2D, Frame3D, Frame2D)
 │   ├── rendering/         # Rendering backend (Metal, shapes, images)
 │   └── bindings/          # Python bindings (pybind11)
 ├── samples/               # Example applications

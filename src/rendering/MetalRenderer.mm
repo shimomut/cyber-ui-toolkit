@@ -236,7 +236,7 @@ void MetalRenderer::endFrame() {
     }
 }
 
-void MetalRenderer::renderObject(Object3D* object) {
+void MetalRenderer::renderObject(Object2D* object) {
     if (!object || !object->isVisible()) return;
     
     // Check if it's a Rectangle
@@ -253,8 +253,8 @@ void MetalRenderer::renderObject(Object3D* object) {
 
 void MetalRenderer::renderRectangle(Rectangle* rect) {
     @autoreleasepool {
-        float x, y, z;
-        rect->getPosition(x, y, z);
+        float x, y;
+        rect->getPosition(x, y);
         
         float width, height;
         rect->getSize(width, height);

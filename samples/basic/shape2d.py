@@ -72,7 +72,7 @@ def main():
     # Rectangle 1: Gradient texture
     rect1 = ui.Rectangle(256, 256)
     rect1.set_name("GradientRectangle")
-    rect1.set_position(50, 50, 0)
+    rect1.set_position(50, 50)
     rect1.set_color(1.0, 1.0, 1.0, 1.0)  # White (to show texture as-is)
     if gradient_img:
         rect1.set_image(gradient_img)
@@ -81,7 +81,7 @@ def main():
     # Rectangle 2: Checkerboard texture
     rect2 = ui.Rectangle(128, 128)
     rect2.set_name("CheckerboardRectangle")
-    rect2.set_position(350, 100, 0)
+    rect2.set_position(350, 100)
     rect2.set_color(1.0, 1.0, 1.0, 1.0)  # White
     if checkerboard_img:
         rect2.set_image(checkerboard_img)
@@ -90,7 +90,7 @@ def main():
     # Rectangle 3: Icon texture
     rect3 = ui.Rectangle(64, 64)
     rect3.set_name("IconRectangle")
-    rect3.set_position(520, 150, 0)
+    rect3.set_position(520, 150)
     rect3.set_color(1.0, 1.0, 1.0, 1.0)  # White
     if icon_img:
         rect3.set_image(icon_img)
@@ -99,14 +99,14 @@ def main():
     # Rectangle 4: Colored rectangle without texture (for comparison)
     rect4 = ui.Rectangle(150, 100)
     rect4.set_name("SolidColorRectangle")
-    rect4.set_position(350, 300, 0)
+    rect4.set_position(350, 300)
     rect4.set_color(0.2, 0.6, 1.0, 1.0)  # Light blue
     print("✓ Created solid color rectangle (no texture)")
     
     # Rectangle 5: Tinted texture (color + texture)
     rect5 = ui.Rectangle(128, 128)
     rect5.set_name("TintedCheckerboard")
-    rect5.set_position(100, 350, 0)
+    rect5.set_position(100, 350)
     rect5.set_color(1.0, 0.5, 0.5, 1.0)  # Red tint
     if checkerboard_img:
         rect5.set_image(checkerboard_img)

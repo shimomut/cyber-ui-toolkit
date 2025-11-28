@@ -13,7 +13,7 @@ public:
     void shutdown() override;
     bool beginFrame() override;
     void endFrame() override;
-    void renderObject(Object3D* object) override;
+    void renderObject(Object2D* object) override;
     bool shouldClose() override;
     void pollEvents() override;
 

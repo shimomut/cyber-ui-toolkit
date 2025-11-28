@@ -1,14 +1,14 @@
-#include "Object3D.h"
+#include "Object2D.h"
 #include <algorithm>
 
 namespace CyberUI {
 
-Object3D::Object3D() 
+Object2D::Object2D() 
     : parent_(nullptr), visible_(true), name_("") {
-    position_[0] = position_[1] = position_[2] = 0.0f;
+    position_[0] = position_[1] = 0.0f;
 }
 
-void Object3D::addChild(std::shared_ptr<Object3D> child) {
+void Object2D::addChild(std::shared_ptr<Object2D> child) {
     if (child && child->parent_ != this) {
         if (child->parent_) {
             child->parent_->removeChild(child);
@@ -18,7 +18,7 @@ void Object3D::addChild(std::shared_ptr<Object3D> child) {
     }
 }
 
-void Object3D::removeChild(std::shared_ptr<Object3D> child) {
+void Object2D::removeChild(std::shared_ptr<Object2D> child) {
     auto it = std::find(children_.begin(), children_.end(), child);
     if (it != children_.end()) {
         (*it)->parent_ = nullptr;
@@ -26,16 +26,14 @@ void Object3D::removeChild(std::shared_ptr<Object3D> child) {
     }
 }
 
-void Object3D::setPosition(float x, float y, float z) {
+void Object2D::setPosition(float x, float y) {
     position_[0] = x;
     position_[1] = y;
-    position_[2] = z;
 }
 
-void Object3D::getPosition(float& x, float& y, float& z) const {
+void Object2D::getPosition(float& x, float& y) const {
     x = position_[0];
     y = position_[1];
-    z = position_[2];
 }
 
 } // namespace CyberUI

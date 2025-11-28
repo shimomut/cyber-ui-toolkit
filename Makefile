@@ -19,7 +19,7 @@ INCLUDES := -I$(SRC_DIR) -I$(PYTHON_INCLUDE) $(PYBIND11_INCLUDE)
 LDFLAGS := -shared -undefined dynamic_lookup -framework Metal -framework MetalKit -framework Cocoa -framework QuartzCore
 
 # Source files
-CORE_SOURCES := $(SRC_DIR)/core/Object3D.cpp
+CORE_SOURCES := $(SRC_DIR)/core/Object2D.cpp $(SRC_DIR)/core/Frame3D.cpp $(SRC_DIR)/core/Frame2D.cpp
 RENDERING_SOURCES := $(SRC_DIR)/rendering/Shape2D.cpp $(SRC_DIR)/rendering/Image.cpp
 METAL_SOURCES := $(SRC_DIR)/rendering/MetalRenderer.mm
 BINDING_SOURCES := $(SRC_DIR)/bindings/python_bindings.cpp

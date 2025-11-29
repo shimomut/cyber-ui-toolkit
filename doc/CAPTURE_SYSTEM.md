@@ -32,6 +32,20 @@ data, width, height = renderer.capture_frame()
 # data is bytes object in BGRA format (4 bytes per pixel)
 ```
 
+## Command-Line Usage
+
+Many sample applications support a `--capture` flag to enable frame capture:
+
+```bash
+# Run without capture (normal mode)
+python samples/basic/hierarchy_demo.py
+
+# Run with capture enabled
+python samples/basic/hierarchy_demo.py --capture
+```
+
+When capture is enabled, frames are automatically saved to `samples/output/`.
+
 ## Usage Examples
 
 ### Basic Frame Capture

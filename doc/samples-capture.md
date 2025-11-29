@@ -82,6 +82,12 @@ python tests/test_capture.py
 
 # Run capture demo
 python samples/basic/capture_demo.py
+
+# Run hierarchy demo with capture
+python samples/basic/hierarchy_demo.py --capture
+
+# Run hierarchy demo without capture (normal mode)
+python samples/basic/hierarchy_demo.py
 ```
 
 ## Common Use Cases

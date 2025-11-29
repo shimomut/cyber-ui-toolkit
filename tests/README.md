@@ -50,12 +50,19 @@ Test outputs are saved to `tests/output/` (created automatically):
 # Run capture tests
 python tests/test_capture.py
 
+# Test capture flag functionality
+python tests/test_capture_flag.py          # Without capture
+python tests/test_capture_flag.py --capture  # With capture
+
 # Run image loading tests
 python tests/test_image_loading.py
 
 # Run texture verification
 python tests/verify_textures.py
 python tests/verify_texture_sync.py
+
+# Run diagnostic tools
+python tests/diagnose_display_noise.py
 ```
 
 ## See Also

@@ -8,6 +8,10 @@ This sample shows:
 - Nested Frame2D structures
 - Rectangle shapes with colors and textures
 - Parent-child relationships and relative positioning
+
+Usage:
+    python hierarchy_demo.py              # Normal mode (no capture)
+    python hierarchy_demo.py --capture    # Enable frame capture
 """
 
 import sys
@@ -17,6 +21,7 @@ import cyber_ui_core as ui
 from PIL import Image as PILImage
 import os
 import math
+import argparse
 
 def load_image_with_pillow(filepath):
     """Load an image using Pillow and return a cyber_ui Image object"""
@@ -46,7 +51,19 @@ def load_image_with_pillow(filepath):
         return None
 
 def main():
+    # Parse command-line arguments
+    parser = argparse.ArgumentParser(description='3D Hierarchy Demo')
+    parser.add_argument('--capture', action='store_true',
+                        help='Enable frame capture to samples/output/')
+    args = parser.parse_args()
+    
     print("=== Cyber UI Toolkit - 3D Hierarchy Demo ===\n")
+    
+    if args.capture:
+        print("📸 Frame capture ENABLED")
+        print("   Frames will be saved to samples/output/\n")
+    else:
+        print("Frame capture disabled (use --capture to enable)\n")
     
     # Initialize renderer
     renderer = ui.create_metal_renderer()
@@ -278,17 +295,20 @@ def main():
     # Render loop with 3D animation
     print("Starting render loop with 3D animation...")
     print("Watch the panels rotate and move in 3D space!")
-    print("Press SPACE to capture a frame, or ESC/close window to exit\n")
+    if args.capture:
+        print("Capturing frames automatically every 2 seconds...")
+    print("Press ESC or close window to exit\n")
     
-    # Create output directory for captures
-    output_dir = os.path.join(script_dir, "..", "output")
-    os.makedirs(output_dir, exist_ok=True)
+    # Setup capture if enabled
+    output_dir = None
+    capture_count = 0
+    initial_capture_frame = 5
+    
+    if args.capture:
+        output_dir = os.path.join(script_dir, "..", "output")
+        os.makedirs(output_dir, exist_ok=True)
     
     frame_count = 0
-    capture_count = 0
-    
-    # Capture initial frame after a few frames to ensure everything is loaded
-    initial_capture_frame = 5
     
     while not renderer.should_close():
         renderer.poll_events()
@@ -321,69 +341,75 @@ def main():
             renderer.end_frame()
             frame_count += 1
             
-            # Auto-capture initial frame to verify rendering
-            if frame_count == initial_capture_frame:
-                capture_filename = os.path.join(output_dir, "hierarchy_demo_initial.png")
-                if renderer.save_capture(capture_filename):
-                    print(f"✓ Auto-captured initial frame: {capture_filename}")
-                    capture_count += 1
-                else:
-                    print("✗ Failed to capture initial frame")
+            # Capture frames only if enabled
+            if args.capture and output_dir:
+                # Auto-capture initial frame to verify rendering
+                if frame_count == initial_capture_frame:
+                    capture_filename = os.path.join(output_dir, "hierarchy_demo_initial.png")
+                    if renderer.save_capture(capture_filename):
+                        print(f"✓ Auto-captured initial frame: {capture_filename}")
+                        capture_count += 1
+                    else:
+                        print("✗ Failed to capture initial frame")
+                
+                # Auto-capture every 120 frames (about every 2 seconds at 60fps)
+                if frame_count > initial_capture_frame and frame_count % 120 == 0:
+                    capture_filename = os.path.join(output_dir, f"hierarchy_demo_frame_{frame_count:05d}.png")
+                    if renderer.save_capture(capture_filename):
+                        print(f"✓ Captured frame {frame_count}: {capture_filename}")
+                        capture_count += 1
+    
+    # Capture final frame and analysis only if capture mode enabled
+    if args.capture and output_dir:
+        print("\nCapturing final frame...")
+        final_filename = os.path.join(output_dir, "hierarchy_demo_final.png")
+        if renderer.save_capture(final_filename):
+            print(f"✓ Final frame saved: {final_filename}")
+            capture_count += 1
+        
+        # Demonstrate raw pixel data capture
+        print("\nCapturing raw pixel data for analysis...")
+        data, width, height = renderer.capture_frame()
+        
+        if data is not None:
+            print(f"✓ Captured {width}x{height} frame ({len(data)} bytes)")
+            print(f"  Format: BGRA (4 bytes per pixel)")
             
-            # Auto-capture every 120 frames (about every 2 seconds at 60fps)
-            if frame_count > initial_capture_frame and frame_count % 120 == 0:
-                capture_filename = os.path.join(output_dir, f"hierarchy_demo_frame_{frame_count:05d}.png")
-                if renderer.save_capture(capture_filename):
-                    print(f"✓ Captured frame {frame_count}: {capture_filename}")
-                    capture_count += 1
-    
-    # Capture final frame
-    print("\nCapturing final frame...")
-    final_filename = os.path.join(output_dir, "hierarchy_demo_final.png")
-    if renderer.save_capture(final_filename):
-        print(f"✓ Final frame saved: {final_filename}")
-        capture_count += 1
-    
-    # Demonstrate raw pixel data capture
-    print("\nCapturing raw pixel data for analysis...")
-    data, width, height = renderer.capture_frame()
-    
-    if data is not None:
-        print(f"✓ Captured {width}x{height} frame ({len(data)} bytes)")
-        print(f"  Format: BGRA (4 bytes per pixel)")
+            # Analyze some pixels
+            import struct
+            pixels = struct.unpack(f'{len(data)}B', data)
+            
+            # Sample center pixel
+            center_x = width // 2
+            center_y = height // 2
+            center_offset = (center_y * width + center_x) * 4
+            
+            b = pixels[center_offset]
+            g = pixels[center_offset + 1]
+            r = pixels[center_offset + 2]
+            a = pixels[center_offset + 3]
+            
+            print(f"  Center pixel (BGRA): ({b}, {g}, {r}, {a})")
+            
+            # Calculate average color
+            total_r = sum(pixels[i+2] for i in range(0, len(pixels), 4))
+            total_g = sum(pixels[i+1] for i in range(0, len(pixels), 4))
+            total_b = sum(pixels[i] for i in range(0, len(pixels), 4))
+            
+            num_pixels = width * height
+            avg_r = total_r / num_pixels
+            avg_g = total_g / num_pixels
+            avg_b = total_b / num_pixels
+            
+            print(f"  Average color: R={avg_r:.1f}, G={avg_g:.1f}, B={avg_b:.1f}")
+        else:
+            print("✗ Failed to capture raw pixel data")
         
-        # Analyze some pixels
-        import struct
-        pixels = struct.unpack(f'{len(data)}B', data)
-        
-        # Sample center pixel
-        center_x = width // 2
-        center_y = height // 2
-        center_offset = (center_y * width + center_x) * 4
-        
-        b = pixels[center_offset]
-        g = pixels[center_offset + 1]
-        r = pixels[center_offset + 2]
-        a = pixels[center_offset + 3]
-        
-        print(f"  Center pixel (BGRA): ({b}, {g}, {r}, {a})")
-        
-        # Calculate average color
-        total_r = sum(pixels[i+2] for i in range(0, len(pixels), 4))
-        total_g = sum(pixels[i+1] for i in range(0, len(pixels), 4))
-        total_b = sum(pixels[i] for i in range(0, len(pixels), 4))
-        
-        num_pixels = width * height
-        avg_r = total_r / num_pixels
-        avg_g = total_g / num_pixels
-        avg_b = total_b / num_pixels
-        
-        print(f"  Average color: R={avg_r:.1f}, G={avg_g:.1f}, B={avg_b:.1f}")
+        print(f"\nRendered {frame_count} frames")
+        print(f"Captured {capture_count} images to {output_dir}")
     else:
-        print("✗ Failed to capture raw pixel data")
+        print(f"\nRendered {frame_count} frames")
     
-    print(f"\nRendered {frame_count} frames")
-    print(f"Captured {capture_count} images to {output_dir}")
     renderer.shutdown()
     print("Renderer shutdown complete")
 

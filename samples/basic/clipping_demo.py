@@ -128,7 +128,7 @@ def main():
     border_top = ui.Rectangle(500.0, border_width)
     border_top.set_name("BorderTop")
     border_top.set_position(0.0, 0.0)  # Top edge
-    border_top.set_color(0.0, 1.0, 0.0, 1.0)  # Bright green
+    border_top.set_color(1.0, 1.0, 0.0, 1.0)  # Yellow
     clip_panel.add_child(border_top)
     
     border_bottom = ui.Rectangle(500.0, border_width)
@@ -140,7 +140,7 @@ def main():
     border_left = ui.Rectangle(border_width, 600.0)
     border_left.set_name("BorderLeft")
     border_left.set_position(0.0, 0.0)  # Left edge
-    border_left.set_color(0.0, 1.0, 0.0, 1.0)
+    border_left.set_color(0.0, 1.0, 1.0, 1.0)
     clip_panel.add_child(border_left)
     
     border_right = ui.Rectangle(border_width, 600.0)

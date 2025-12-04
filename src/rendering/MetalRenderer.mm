@@ -668,7 +668,7 @@ void MetalRenderer::renderText(Text* text, const float* mvpMatrix) {
             CGContextScaleCTM(context, 1.0, -1.0);
             
             // Draw text in white (will be tinted by vertex color in shader)
-            NSGraphicsContext* nsContext = [NSGraphicsContext graphicsContextWithCGContext:context flipped:YES];
+            NSGraphicsContext* nsContext = [NSGraphicsContext graphicsContextWithCGContext:context flipped:NO];
             [NSGraphicsContext saveGraphicsState];
             [NSGraphicsContext setCurrentContext:nsContext];
             

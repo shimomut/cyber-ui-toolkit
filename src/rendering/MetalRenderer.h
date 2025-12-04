@@ -37,6 +37,11 @@ private:
     
     void* getOrCreateTexture(Image* image);
     
+    // Scissor rect management for clipping
+    void pushScissorRect(float x, float y, float width, float height, const float* mvpMatrix);
+    void popScissorRect();
+    void transformPointToScreen(float x, float y, const float* mvpMatrix, float& screenX, float& screenY);
+    
     void multiplyMatrices(const float* a, const float* b, float* result);
     void createTransformMatrix(float x, float y, float z, 
                               float pitch, float yaw, float roll,
@@ -62,6 +67,12 @@ private:
     
     // Track if new textures were created this frame
     bool newTexturesCreatedThisFrame_;
+    
+    // Scissor rect stack for clipping
+    struct ScissorRect {
+        int x, y, width, height;
+    };
+    std::vector<ScissorRect> scissorStack_;
 };
 
 } // namespace CyberUI

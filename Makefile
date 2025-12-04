@@ -1,4 +1,4 @@
-.PHONY: all build clean run-basic run-hierarchy install-deps help
+.PHONY: all build clean run-basic run-hierarchy run-text run-capture run-clipping test-capture test-clipping install-deps help
 
 # Configuration
 CXX := clang++
@@ -93,10 +93,20 @@ run-capture: build
 	@echo "Running capture demo sample..."
 	@cd samples/basic && $(PYTHON) capture_demo.py
 
+# Run clipping demo sample
+run-clipping: build
+	@echo "Running clipping demo sample..."
+	@cd samples/basic && $(PYTHON) clipping_demo.py
+
 # Run capture tests
 test-capture: build
 	@echo "Running capture system tests..."
 	@$(PYTHON) tests/test_capture.py
+
+# Run clipping tests
+test-clipping: build
+	@echo "Running Frame2D clipping tests..."
+	@cd tests && $(PYTHON) test_clipping_comprehensive.py
 
 # Rebuild from scratch
 rebuild: clean build
@@ -114,6 +124,8 @@ help:
 	@echo "  make run-hierarchy - Build and run hierarchy demo sample"
 	@echo "  make run-text      - Build and run text rendering demo sample"
 	@echo "  make run-capture   - Build and run capture demo sample"
+	@echo "  make run-clipping  - Build and run Frame2D clipping demo sample"
 	@echo "  make test-capture  - Build and run capture system tests"
+	@echo "  make test-clipping - Build and run Frame2D clipping tests"
 	@echo "  make help          - Show this help message"
 	@echo ""

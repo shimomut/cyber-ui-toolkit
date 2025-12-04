@@ -4,6 +4,7 @@
 #import "Text.h"
 #import "../core/SceneRoot.h"
 #import "../core/Frame3D.h"
+#import "../core/Frame2D.h"
 #import "../core/Camera.h"
 #import <Metal/Metal.h>
 #import <MetalKit/MetalKit.h>
@@ -237,6 +238,9 @@ bool MetalRenderer::beginFrame() {
     // Reset texture creation flag for this frame
     newTexturesCreatedThisFrame_ = false;
     
+    // Clear scissor stack for new frame
+    scissorStack_.clear();
+    
     @autoreleasepool {
         id<MTLCommandQueue> commandQueue = (__bridge id<MTLCommandQueue>)commandQueue_;
         id<MTLCommandBuffer> commandBuffer = [commandQueue commandBuffer];
@@ -253,6 +257,27 @@ bool MetalRenderer::beginFrame() {
         
         id<MTLRenderPipelineState> pipelineState = (__bridge id<MTLRenderPipelineState>)pipelineState_;
         [renderEncoder setRenderPipelineState:pipelineState];
+        
+        // Get actual drawable size (accounts for Retina scaling)
+        CGSize drawableSize = [view drawableSize];
+        
+        // Set viewport to match drawable size
+        MTLViewport viewport;
+        viewport.originX = 0.0;
+        viewport.originY = 0.0;
+        viewport.width = drawableSize.width;
+        viewport.height = drawableSize.height;
+        viewport.znear = 0.0;
+        viewport.zfar = 1.0;
+        [renderEncoder setViewport:viewport];
+        
+        // Set initial scissor rect to full viewport
+        MTLScissorRect scissor;
+        scissor.x = 0;
+        scissor.y = 0;
+        scissor.width = drawableSize.width;
+        scissor.height = drawableSize.height;
+        [renderEncoder setScissorRect:scissor];
         
         return true;
     }
@@ -291,21 +316,26 @@ void MetalRenderer::renderObject(Object2D* object) {
         0, 0, 0, 1
     };
     
-    // Convert to NDC space
-    float viewWidth = windowWidth_;
-    float viewHeight = windowHeight_;
-    
-    float scaleX = 2.0f / viewWidth;
-    float scaleY = -2.0f / viewHeight;
-    
-    float orthoMatrix[16] = {
-        scaleX, 0, 0, 0,
-        0, scaleY, 0, 0,
-        0, 0, 1, 0,
-        -1, 1, 0, 1
-    };
-    
-    renderObject2D(object, orthoMatrix);
+    // Convert to NDC space using drawable size (accounts for Retina scaling)
+    @autoreleasepool {
+        MTKView* view = (__bridge MTKView*)metalView_;
+        CGSize drawableSize = [view drawableSize];
+        
+        float viewWidth = drawableSize.width;
+        float viewHeight = drawableSize.height;
+        
+        float scaleX = 2.0f / viewWidth;
+        float scaleY = -2.0f / viewHeight;
+        
+        float orthoMatrix[16] = {
+            scaleX, 0, 0, 0,
+            0, scaleY, 0, 0,
+            0, 0, 1, 0,
+            -1, 1, 0, 1
+        };
+        
+        renderObject2D(object, orthoMatrix);
+    }
 }
 
 bool MetalRenderer::shouldClose() {
@@ -398,6 +428,37 @@ void MetalRenderer::renderObject2D(Object2D* object, const float* mvpMatrix) {
     // Combine with parent MVP
     float objectMVP[16];
     multiplyMatrices(mvpMatrix, translationMatrix, objectMVP);
+    
+    // Check if it's a Frame2D (needs to be checked before Rectangle since Frame2D inherits from Object2D)
+    Frame2D* frame2d = dynamic_cast<Frame2D*>(object);
+    if (frame2d) {
+        // Handle clipping for Frame2D
+        bool hasClipping = frame2d->isClippingEnabled();
+        
+        if (hasClipping) {
+            float width, height;
+            frame2d->getSize(width, height);
+            // Frame2D children are positioned relative to Frame2D's position
+            // The clipping region should cover from (0, 0) to (width, height) in Frame2D's local space
+            // Since Frame2D's position is at its center (like all Object2D), we need to offset
+            // the scissor rect to match where children will actually be rendered
+            // Children at (0, 0) will be at Frame2D's center, so scissor should be centered too
+            float halfWidth = width * 0.5f;
+            float halfHeight = height * 0.5f;
+            pushScissorRect(-halfWidth, -halfHeight, width, height, objectMVP);
+        }
+        
+        // Render Frame2D children
+        for (const auto& child : frame2d->getChildren()) {
+            renderObject2D(child.get(), objectMVP);
+        }
+        
+        if (hasClipping) {
+            popScissorRect();
+        }
+        
+        return;  // Frame2D handled, don't process as regular object
+    }
     
     // Check if it's a Rectangle
     Rectangle* rect = dynamic_cast<Rectangle*>(object);
@@ -865,6 +926,128 @@ bool MetalRenderer::saveCapture(const char* filename) {
         CGColorSpaceRelease(colorSpace);
         
         return success;
+    }
+}
+
+void MetalRenderer::pushScissorRect(float x, float y, float width, float height, const float* mvpMatrix) {
+    @autoreleasepool {
+        // Transform the four corners of the clipping rectangle to screen space
+        float corners[4][2] = {
+            {x, y},                    // Top-left
+            {x + width, y},            // Top-right
+            {x, y + height},           // Bottom-left
+            {x + width, y + height}    // Bottom-right
+        };
+        
+        float screenCorners[4][2];
+        for (int i = 0; i < 4; i++) {
+            transformPointToScreen(corners[i][0], corners[i][1], mvpMatrix, 
+                                  screenCorners[i][0], screenCorners[i][1]);
+        }
+        
+        // Find bounding box in screen space
+        float minX = screenCorners[0][0];
+        float maxX = screenCorners[0][0];
+        float minY = screenCorners[0][1];
+        float maxY = screenCorners[0][1];
+        
+        for (int i = 1; i < 4; i++) {
+            minX = std::min(minX, screenCorners[i][0]);
+            maxX = std::max(maxX, screenCorners[i][0]);
+            minY = std::min(minY, screenCorners[i][1]);
+            maxY = std::max(maxY, screenCorners[i][1]);
+        }
+        
+        // Convert to integer pixel coordinates
+        int scissorX = static_cast<int>(std::max(0.0f, minX));
+        int scissorY = static_cast<int>(std::max(0.0f, minY));
+        int scissorWidth = static_cast<int>(std::min(static_cast<float>(windowWidth_), maxX) - scissorX);
+        int scissorHeight = static_cast<int>(std::min(static_cast<float>(windowHeight_), maxY) - scissorY);
+        
+        // Clamp to valid ranges
+        scissorWidth = std::max(0, scissorWidth);
+        scissorHeight = std::max(0, scissorHeight);
+        
+        // If there's already a scissor rect, intersect with it
+        if (!scissorStack_.empty()) {
+            const ScissorRect& parent = scissorStack_.back();
+            int parentRight = parent.x + parent.width;
+            int parentBottom = parent.y + parent.height;
+            int scissorRight = scissorX + scissorWidth;
+            int scissorBottom = scissorY + scissorHeight;
+            
+            scissorX = std::max(scissorX, parent.x);
+            scissorY = std::max(scissorY, parent.y);
+            scissorRight = std::min(scissorRight, parentRight);
+            scissorBottom = std::min(scissorBottom, parentBottom);
+            
+            scissorWidth = std::max(0, scissorRight - scissorX);
+            scissorHeight = std::max(0, scissorBottom - scissorY);
+        }
+        
+        // Push to stack
+        scissorStack_.push_back({scissorX, scissorY, scissorWidth, scissorHeight});
+        
+        // Apply to Metal render encoder
+        id<MTLRenderCommandEncoder> renderEncoder = (__bridge id<MTLRenderCommandEncoder>)renderEncoder_;
+        MTLScissorRect metalScissor;
+        metalScissor.x = scissorX;
+        metalScissor.y = scissorY;
+        metalScissor.width = scissorWidth;
+        metalScissor.height = scissorHeight;
+        [renderEncoder setScissorRect:metalScissor];
+    }
+}
+
+void MetalRenderer::popScissorRect() {
+    if (scissorStack_.empty()) return;
+    
+    @autoreleasepool {
+        scissorStack_.pop_back();
+        
+        id<MTLRenderCommandEncoder> renderEncoder = (__bridge id<MTLRenderCommandEncoder>)renderEncoder_;
+        
+        if (scissorStack_.empty()) {
+            // Restore to full viewport
+            MTLScissorRect metalScissor;
+            metalScissor.x = 0;
+            metalScissor.y = 0;
+            metalScissor.width = windowWidth_;
+            metalScissor.height = windowHeight_;
+            [renderEncoder setScissorRect:metalScissor];
+        } else {
+            // Restore to parent scissor rect
+            const ScissorRect& parent = scissorStack_.back();
+            MTLScissorRect metalScissor;
+            metalScissor.x = parent.x;
+            metalScissor.y = parent.y;
+            metalScissor.width = parent.width;
+            metalScissor.height = parent.height;
+            [renderEncoder setScissorRect:metalScissor];
+        }
+    }
+}
+
+void MetalRenderer::transformPointToScreen(float x, float y, const float* mvpMatrix, float& screenX, float& screenY) {
+    // Transform point by MVP matrix
+    float clipX = mvpMatrix[0] * x + mvpMatrix[4] * y + mvpMatrix[12];
+    float clipY = mvpMatrix[1] * x + mvpMatrix[5] * y + mvpMatrix[13];
+    float clipW = mvpMatrix[3] * x + mvpMatrix[7] * y + mvpMatrix[15];
+    
+    // Perspective divide
+    if (clipW != 0.0f) {
+        clipX /= clipW;
+        clipY /= clipW;
+    }
+    
+    // Get drawable size (accounts for Retina scaling)
+    @autoreleasepool {
+        MTKView* view = (__bridge MTKView*)metalView_;
+        CGSize drawableSize = [view drawableSize];
+        
+        // Convert from NDC [-1, 1] to screen space [0, width/height]
+        screenX = (clipX + 1.0f) * 0.5f * drawableSize.width;
+        screenY = (1.0f - clipY) * 0.5f * drawableSize.height;  // Flip Y for screen coordinates
     }
 }
 

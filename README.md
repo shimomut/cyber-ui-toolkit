@@ -25,6 +25,9 @@ The library consists of two layers:
 - ✅ Image loading with Pillow integration
 - ✅ Texture mapping and color tinting
 - ✅ Scene graph with parent-child relationships
+- ✅ **Frame2D clipping with hardware scissor test**
+- ✅ Transform-aware clipping (supports Frame3D rotation/scale)
+- ✅ Text rendering with font support
 - ✅ Frame capture system for debugging and testing
 - ✅ Python bindings for easy application development
 
@@ -53,12 +56,19 @@ make clean && make
 ### Run Samples
 
 ```bash
-# Interactive texture demo (opens window)
-PYTHONPATH=build python3 samples/basic/test_rectangle.py
+# Using make targets (recommended)
+make run-basic       # Basic 2D shapes with textures
+make run-hierarchy   # 3D scene hierarchy demo
+make run-text        # Text rendering demo
+make run-clipping    # Frame2D clipping demo (NEW!)
+make run-capture     # Frame capture demo
 
-# Non-interactive demos
-PYTHONPATH=build python3 samples/basic/test_image_loading.py
-PYTHONPATH=build python3 samples/basic/test_texture_demo.py
+# Or run directly
+cd samples/basic
+python3 shape2d.py
+python3 hierarchy_demo.py
+python3 text_demo.py
+python3 clipping_demo.py
 ```
 
 ## Usage Example
@@ -119,21 +129,29 @@ cyber-ui-toolkit/
 ## Documentation
 
 - [Project Structure](/.kiro/steering/project-structure.md) - Directory organization and conventions
+- [Clipping Implementation](/doc/CLIPPING_IMPLEMENTATION.md) - Frame2D clipping system details
+- [Clipping Demo](/doc/samples-clipping.md) - Clipping demo walkthrough
 - [Capture System](/doc/CAPTURE_SYSTEM.md) - Frame capture for debugging and testing
-- [Basic Samples](/samples/basic/README.md) - Sample code documentation
-- [Test Images](/samples/data/README.md) - Test image documentation
+- [3D Rendering](/doc/3D_RENDERING.md) - 3D scene graph and camera system
+- [Text Rendering](/doc/TEXT_RENDERING.md) - Font and text rendering
+- [Hierarchy System](/doc/HIERARCHY.md) - Scene hierarchy and transforms
 
 ## Development
 
 ### Build Targets
 
 ```bash
-make build         # Build the library
-make clean         # Remove build artifacts
-make rebuild       # Clean and build
-make install-deps  # Install Python dependencies
-make run-basic     # Build and run basic sample
-make help          # Show all targets
+make build          # Build the library
+make clean          # Remove build artifacts
+make rebuild        # Clean and build
+make install-deps   # Install Python dependencies
+make run-basic      # Build and run basic shape sample
+make run-hierarchy  # Build and run 3D hierarchy demo
+make run-text       # Build and run text rendering demo
+make run-clipping   # Build and run Frame2D clipping demo
+make run-capture    # Build and run capture demo
+make test-capture   # Run capture system tests
+make help           # Show all targets
 ```
 
 ### Adding New Features

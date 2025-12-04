@@ -20,24 +20,13 @@ void Frame2D::getSize(float& width, float& height) const {
 void Frame2D::render() {
     if (!isVisible()) return;
 
-    // Apply clipping if enabled
-    if (clipping_enabled_) {
-        float x, y;
-        getPosition(x, y);
-        std::cout << "Frame2D: " << getName() 
-                  << " clipping region at (" << x << ", " << y << ")"
-                  << " size: " << width_ << "x" << height_ << std::endl;
-        // TODO: Set up clipping rectangle in graphics API
-    }
-
+    // Note: Clipping is now handled by the renderer (MetalRenderer)
+    // The renderer detects Frame2D objects and applies scissor rects automatically
+    // based on the clipping_enabled_ flag and size.
+    
     // Render all children
     for (const auto& child : getChildren()) {
         child->render();
-    }
-
-    // Restore clipping state
-    if (clipping_enabled_) {
-        // TODO: Restore previous clipping state
     }
 }
 

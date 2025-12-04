@@ -308,14 +308,6 @@ void MetalRenderer::endFrame() {
 void MetalRenderer::renderObject(Object2D* object) {
     if (!object || !object->isVisible()) return;
     
-    // Legacy rendering - create identity MVP matrix for 2D rendering
-    float identityMatrix[16] = {
-        1, 0, 0, 0,
-        0, 1, 0, 0,
-        0, 0, 1, 0,
-        0, 0, 0, 1
-    };
-    
     // Convert to NDC space using drawable size (accounts for Retina scaling)
     @autoreleasepool {
         MTKView* view = (__bridge MTKView*)metalView_;
@@ -831,7 +823,6 @@ void MetalRenderer::renderFrame3DToTexture(Frame3D* frame) {
     if (!frame) return;
     
     @autoreleasepool {
-        id<MTLDevice> device = (__bridge id<MTLDevice>)device_;
         id<MTLCommandQueue> commandQueue = (__bridge id<MTLCommandQueue>)commandQueue_;
         
         // Get or create render target

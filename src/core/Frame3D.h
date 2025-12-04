@@ -8,6 +8,7 @@ namespace CyberUI {
 
 // Top-level 3D frame that can contain 2D objects
 // Has 3D position, orientation, and scale
+// Supports off-screen rendering for proper clipping with 3D transforms
 class Frame3D {
 public:
     Frame3D();
@@ -36,6 +37,17 @@ public:
     void setName(const std::string& name) { name_ = name; }
     const std::string& getName() const { return name_; }
 
+    // Off-screen rendering configuration
+    void setOffscreenRenderingEnabled(bool enabled) { offscreenRenderingEnabled_ = enabled; }
+    bool isOffscreenRenderingEnabled() const { return offscreenRenderingEnabled_; }
+    
+    void setRenderTargetSize(int width, int height);
+    void getRenderTargetSize(int& width, int& height) const;
+    
+    // Render target texture (managed by renderer)
+    void setRenderTargetTexture(void* texture) { renderTargetTexture_ = texture; }
+    void* getRenderTargetTexture() const { return renderTargetTexture_; }
+
     // Render all children
     virtual void render();
 
@@ -47,6 +59,12 @@ protected:
     float scale_[3];
     bool visible_;
     std::string name_;
+    
+    // Off-screen rendering support
+    bool offscreenRenderingEnabled_;
+    int renderTargetWidth_;
+    int renderTargetHeight_;
+    void* renderTargetTexture_;  // Opaque pointer to renderer-specific texture
 };
 
 } // namespace CyberUI

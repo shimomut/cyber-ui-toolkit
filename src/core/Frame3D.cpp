@@ -4,7 +4,10 @@
 namespace CyberUI {
 
 Frame3D::Frame3D() 
-    : visible_(true), name_("") {
+    : visible_(true), name_(""),
+      offscreenRenderingEnabled_(false),
+      renderTargetWidth_(1024), renderTargetHeight_(1024),
+      renderTargetTexture_(nullptr) {
     position_[0] = position_[1] = position_[2] = 0.0f;
     rotation_[0] = rotation_[1] = rotation_[2] = 0.0f;
     scale_[0] = scale_[1] = scale_[2] = 1.0f;
@@ -57,6 +60,16 @@ void Frame3D::removeChild(std::shared_ptr<Object2D> child) {
     if (it != children_.end()) {
         children_.erase(it);
     }
+}
+
+void Frame3D::setRenderTargetSize(int width, int height) {
+    renderTargetWidth_ = width;
+    renderTargetHeight_ = height;
+}
+
+void Frame3D::getRenderTargetSize(int& width, int& height) const {
+    width = renderTargetWidth_;
+    height = renderTargetHeight_;
 }
 
 void Frame3D::render() {

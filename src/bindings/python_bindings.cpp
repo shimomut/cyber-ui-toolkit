@@ -113,6 +113,14 @@ PYBIND11_MODULE(cyber_ui_core, m) {
         .def("is_visible", &Frame3D::isVisible)
         .def("set_name", &Frame3D::setName)
         .def("get_name", &Frame3D::getName)
+        .def("set_offscreen_rendering_enabled", &Frame3D::setOffscreenRenderingEnabled)
+        .def("is_offscreen_rendering_enabled", &Frame3D::isOffscreenRenderingEnabled)
+        .def("set_render_target_size", &Frame3D::setRenderTargetSize)
+        .def("get_render_target_size", [](const Frame3D& obj) {
+            int width, height;
+            obj.getRenderTargetSize(width, height);
+            return py::make_tuple(width, height);
+        })
         .def("render", &Frame3D::render);
 
     // Object2D base class for all 2D objects

@@ -89,10 +89,12 @@ def main():
     # Get script directory for output
     script_dir = os.path.dirname(os.path.abspath(__file__))
     
-    # Create Frame3D container
+    # Create Frame3D container with off-screen rendering enabled
     frame3d = ui.Frame3D()
     frame3d.set_name("MainFrame3D")
     frame3d.set_position(0.0, 0.0, 0.0)
+    frame3d.set_offscreen_rendering_enabled(True)
+    frame3d.set_render_target_size(800, 700)  # Match window size
     scene.add_frame3d(frame3d)
     
     # Load fonts with larger sizes for visibility
@@ -225,21 +227,22 @@ def main():
         
         time = frame_count * 0.016  # ~60fps
         
-        # Animate rectangles with clear, visible movement
+        # Animate rectangles with clear, visible movement (10x slower)
         # Red rectangle - vertical oscillation
-        offset_y1 = math.sin(time * 0.5) * 250.0  # Large movement to show clipping
+        offset_y1 = math.sin(time * 0.05) * 250.0  # Large movement to show clipping
         animated_rects[0].set_position(100.0, 200.0 + offset_y1)
         
         # Blue rectangle - vertical oscillation (opposite phase)
-        offset_y2 = math.sin(time * 0.5 + 3.14) * 250.0  # 180 degrees out of phase
+        offset_y2 = math.sin(time * 0.05 + 3.14) * 250.0  # 180 degrees out of phase
         animated_rects[1].set_position(200.0, 400.0 + offset_y2)
         
-        # Animate text with clear movement
-        text_offset_y = math.sin(time * 0.7) * 300.0
+        # Animate text with clear movement (10x slower)
+        text_offset_y = math.sin(time * 0.07) * 300.0
         animated_texts[0].set_position(250.0, 300.0 + text_offset_y)
         
-        # Very subtle 3D rotation for depth
-        frame3d.set_rotation(math.sin(time * 0.1) * 0.02, math.cos(time * 0.08) * 0.01, 0.0)
+        # 3D rotation now works with off-screen rendering!
+        # Content is rendered to texture with proper clipping, then the texture is rotated
+        frame3d.set_rotation(math.sin(time * 0.01) * 0.3, math.cos(time * 0.008) * 0.2, 0.0)
         
         if renderer.begin_frame():
             renderer.render_scene(scene)

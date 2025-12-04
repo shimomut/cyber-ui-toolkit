@@ -36,6 +36,9 @@ private:
     void renderObject2D(Object2D* object, const float* mvpMatrix);
     
     void* getOrCreateTexture(Image* image);
+    void* getOrCreateRenderTarget(Frame3D* frame);
+    void renderFrame3DToTexture(Frame3D* frame);
+    void renderTexturedQuad(void* texture, float width, float height, const float* mvpMatrix);
     
     // Scissor rect management for clipping
     void pushScissorRect(float x, float y, float width, float height, const float* mvpMatrix);
@@ -64,6 +67,7 @@ private:
     // Texture cache to avoid recreating textures every frame
     std::map<Image*, void*> textureCache_;
     std::map<std::string, void*> textTextureCache_;
+    std::map<Frame3D*, void*> renderTargetCache_;  // Frame3D -> render target texture
     
     // Track if new textures were created this frame
     bool newTexturesCreatedThisFrame_;

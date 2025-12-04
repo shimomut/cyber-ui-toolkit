@@ -388,26 +388,61 @@ void MetalRenderer::renderScene(SceneRoot* scene) {
 void MetalRenderer::renderFrame3D(Frame3D* frame, const float* viewProjMatrix) {
     if (!frame || !frame->isVisible()) return;
     
-    // Get Frame3D transform
-    float pos[3], rot[3], scale[3];
-    frame->getPosition(pos[0], pos[1], pos[2]);
-    frame->getRotation(rot[0], rot[1], rot[2]);
-    frame->getScale(scale[0], scale[1], scale[2]);
-    
-    // Create model matrix for this Frame3D
-    float modelMatrix[16];
-    createTransformMatrix(pos[0], pos[1], pos[2], 
-                         rot[0], rot[1], rot[2],
-                         scale[0], scale[1], scale[2],
-                         modelMatrix);
-    
-    // Combine with view-projection
-    float mvpMatrix[16];
-    multiplyMatrices(viewProjMatrix, modelMatrix, mvpMatrix);
-    
-    // Render all 2D children with this MVP matrix
-    for (const auto& child : frame->getChildren()) {
-        renderObject2D(child.get(), mvpMatrix);
+    // Check if off-screen rendering is enabled
+    if (frame->isOffscreenRenderingEnabled()) {
+        // First, render Frame3D content to texture (with proper clipping in 2D space)
+        renderFrame3DToTexture(frame);
+        
+        // Then render the texture as a quad with 3D transforms
+        void* texture = frame->getRenderTargetTexture();
+        if (texture) {
+            // Get Frame3D transform
+            float pos[3], rot[3], scale[3];
+            frame->getPosition(pos[0], pos[1], pos[2]);
+            frame->getRotation(rot[0], rot[1], rot[2]);
+            frame->getScale(scale[0], scale[1], scale[2]);
+            
+            // Create model matrix for this Frame3D
+            float modelMatrix[16];
+            createTransformMatrix(pos[0], pos[1], pos[2], 
+                                 rot[0], rot[1], rot[2],
+                                 scale[0], scale[1], scale[2],
+                                 modelMatrix);
+            
+            // Combine with view-projection
+            float mvpMatrix[16];
+            multiplyMatrices(viewProjMatrix, modelMatrix, mvpMatrix);
+            
+            // Get render target size
+            int rtWidth, rtHeight;
+            frame->getRenderTargetSize(rtWidth, rtHeight);
+            
+            // Render the texture as a quad
+            renderTexturedQuad(texture, rtWidth, rtHeight, mvpMatrix);
+        }
+    } else {
+        // Direct rendering (old path)
+        // Get Frame3D transform
+        float pos[3], rot[3], scale[3];
+        frame->getPosition(pos[0], pos[1], pos[2]);
+        frame->getRotation(rot[0], rot[1], rot[2]);
+        frame->getScale(scale[0], scale[1], scale[2]);
+        
+        // Create model matrix for this Frame3D
+        float modelMatrix[16];
+        createTransformMatrix(pos[0], pos[1], pos[2], 
+                             rot[0], rot[1], rot[2],
+                             scale[0], scale[1], scale[2],
+                             modelMatrix);
+        
+        // Combine with view-projection
+        float mvpMatrix[16];
+        multiplyMatrices(viewProjMatrix, modelMatrix, mvpMatrix);
+        
+        // Render all 2D children with this MVP matrix
+        for (const auto& child : frame->getChildren()) {
+            renderObject2D(child.get(), mvpMatrix);
+        }
     }
 }
 
@@ -744,6 +779,145 @@ void* MetalRenderer::getOrCreateTexture(Image* image) {
         void* texturePtr = (__bridge_retained void*)texture;
         textureCache_[image] = texturePtr;
         return texturePtr;
+    }
+}
+
+void* MetalRenderer::getOrCreateRenderTarget(Frame3D* frame) {
+    if (!frame) return nullptr;
+    
+    // Check cache first
+    auto it = renderTargetCache_.find(frame);
+    if (it != renderTargetCache_.end()) {
+        return it->second;
+    }
+    
+    // Create new render target texture
+    @autoreleasepool {
+        id<MTLDevice> device = (__bridge id<MTLDevice>)device_;
+        
+        int width, height;
+        frame->getRenderTargetSize(width, height);
+        
+        MTLTextureDescriptor* texDesc = [MTLTextureDescriptor 
+            texture2DDescriptorWithPixelFormat:MTLPixelFormatBGRA8Unorm
+            width:width
+            height:height
+            mipmapped:NO];
+        texDesc.usage = MTLTextureUsageRenderTarget | MTLTextureUsageShaderRead;
+        texDesc.storageMode = MTLStorageModePrivate;
+        
+        id<MTLTexture> texture = [device newTextureWithDescriptor:texDesc];
+        
+        void* texturePtr = (__bridge_retained void*)texture;
+        renderTargetCache_[frame] = texturePtr;
+        frame->setRenderTargetTexture(texturePtr);
+        return texturePtr;
+    }
+}
+
+void MetalRenderer::renderFrame3DToTexture(Frame3D* frame) {
+    if (!frame) return;
+    
+    @autoreleasepool {
+        id<MTLDevice> device = (__bridge id<MTLDevice>)device_;
+        id<MTLCommandQueue> commandQueue = (__bridge id<MTLCommandQueue>)commandQueue_;
+        
+        // Get or create render target
+        void* renderTarget = getOrCreateRenderTarget(frame);
+        if (!renderTarget) return;
+        
+        id<MTLTexture> targetTexture = (__bridge id<MTLTexture>)renderTarget;
+        
+        // Create render pass descriptor for off-screen rendering
+        MTLRenderPassDescriptor* renderPassDesc = [MTLRenderPassDescriptor renderPassDescriptor];
+        renderPassDesc.colorAttachments[0].texture = targetTexture;
+        renderPassDesc.colorAttachments[0].loadAction = MTLLoadActionClear;
+        renderPassDesc.colorAttachments[0].storeAction = MTLStoreActionStore;
+        renderPassDesc.colorAttachments[0].clearColor = MTLClearColorMake(0.0, 0.0, 0.0, 0.0);  // Transparent
+        
+        // Create command buffer for off-screen rendering
+        id<MTLCommandBuffer> offscreenCommandBuffer = [commandQueue commandBuffer];
+        id<MTLRenderCommandEncoder> offscreenEncoder = [offscreenCommandBuffer renderCommandEncoderWithDescriptor:renderPassDesc];
+        
+        // Set pipeline state
+        id<MTLRenderPipelineState> pipelineState = (__bridge id<MTLRenderPipelineState>)pipelineState_;
+        [offscreenEncoder setRenderPipelineState:pipelineState];
+        
+        // Store current encoder and command buffer
+        void* savedEncoder = renderEncoder_;
+        void* savedCommandBuffer = commandBuffer_;
+        
+        // Use off-screen encoder temporarily
+        renderEncoder_ = (__bridge_retained void*)offscreenEncoder;
+        commandBuffer_ = (__bridge_retained void*)offscreenCommandBuffer;
+        
+        // Create orthographic projection for 2D rendering
+        // This matches the main rendering coordinate system
+        int rtWidth, rtHeight;
+        frame->getRenderTargetSize(rtWidth, rtHeight);
+        
+        float orthoMatrix[16] = {
+            2.0f / rtWidth, 0, 0, 0,
+            0, -2.0f / rtHeight, 0, 0,  // Negative Y for standard coordinate system
+            0, 0, -1, 0,
+            -1, 1, 0, 1
+        };
+        
+        // Render all children to texture
+        for (const auto& child : frame->getChildren()) {
+            renderObject2D(child.get(), orthoMatrix);
+        }
+        
+        // End encoding and commit
+        [offscreenEncoder endEncoding];
+        [offscreenCommandBuffer commit];
+        [offscreenCommandBuffer waitUntilCompleted];
+        
+        // Restore original encoder and command buffer
+        if (renderEncoder_) {
+            CFRelease(renderEncoder_);
+        }
+        if (commandBuffer_) {
+            CFRelease(commandBuffer_);
+        }
+        renderEncoder_ = savedEncoder;
+        commandBuffer_ = savedCommandBuffer;
+    }
+}
+
+void MetalRenderer::renderTexturedQuad(void* texture, float width, float height, const float* mvpMatrix) {
+    if (!texture || !renderEncoder_) return;
+    
+    @autoreleasepool {
+        id<MTLRenderCommandEncoder> encoder = (__bridge id<MTLRenderCommandEncoder>)renderEncoder_;
+        id<MTLTexture> tex = (__bridge id<MTLTexture>)texture;
+        
+        // Create quad vertices (centered)
+        // Flip texture V coordinates to correct vertical orientation
+        float halfW = width * 0.5f;
+        float halfH = height * 0.5f;
+        
+        Vertex vertices[6] = {
+            // Triangle 1
+            {{-halfW, -halfH}, {1, 1, 1, 1}, {0, 0}},  // Bottom-left (V flipped: 1->0)
+            {{ halfW, -halfH}, {1, 1, 1, 1}, {1, 0}},  // Bottom-right (V flipped: 1->0)
+            {{-halfW,  halfH}, {1, 1, 1, 1}, {0, 1}},  // Top-left (V flipped: 0->1)
+            
+            // Triangle 2
+            {{ halfW, -halfH}, {1, 1, 1, 1}, {1, 0}},  // Bottom-right (V flipped: 1->0)
+            {{ halfW,  halfH}, {1, 1, 1, 1}, {1, 1}},  // Top-right (V flipped: 0->1)
+            {{-halfW,  halfH}, {1, 1, 1, 1}, {0, 1}}   // Top-left (V flipped: 0->1)
+        };
+        
+        // Set MVP matrix
+        [encoder setVertexBytes:mvpMatrix length:sizeof(float) * 16 atIndex:1];
+        
+        // Set texture
+        [encoder setFragmentTexture:tex atIndex:0];
+        
+        // Draw quad
+        [encoder setVertexBytes:vertices length:sizeof(vertices) atIndex:0];
+        [encoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:6];
     }
 }
 

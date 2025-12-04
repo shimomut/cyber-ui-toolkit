@@ -86,15 +86,8 @@ def main():
     camera.set_perspective(1.0472, 800.0/700.0, 0.1, 2000.0)  # 60 degrees FOV
     print("✓ Camera configured\n")
     
-    # Load textures
-    print("Loading textures...")
+    # Get script directory for output
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    data_dir = os.path.join(script_dir, "..", "data")
-    
-    gradient_img = load_image_with_pillow(os.path.join(data_dir, "gradient.png"))
-    checker_img = load_image_with_pillow(os.path.join(data_dir, "checkerboard.png"))
-    icon_img = load_image_with_pillow(os.path.join(data_dir, "icon.png"))
-    print()
     
     # Create Frame3D container
     frame3d = ui.Frame3D()
@@ -102,13 +95,13 @@ def main():
     frame3d.set_position(0.0, 0.0, 0.0)
     scene.add_frame3d(frame3d)
     
-    # Load fonts
+    # Load fonts with larger sizes for visibility
     print("Loading fonts...")
     font = ui.Font()
-    font.load_from_file("/System/Library/Fonts/Helvetica.ttc", 20.0)
+    font.load_from_file("/System/Library/Fonts/Helvetica.ttc", 32.0)  # Larger
     
     title_font = ui.Font()
-    title_font.load_from_file("/System/Library/Fonts/Helvetica.ttc", 28.0)
+    title_font.load_from_file("/System/Library/Fonts/Helvetica.ttc", 48.0)  # Much larger
     title_font.set_bold(True)
     print("✓ Fonts loaded\n")
     
@@ -154,79 +147,48 @@ def main():
     border_right.set_color(0.0, 1.0, 0.0, 1.0)
     clip_panel.add_child(border_right)
     
-    # Title
-    title = ui.Text("Frame2D Clipping Demo")
+    # Title - larger and more visible, positioned lower
+    title = ui.Text("CLIPPING DEMO")
     title.set_name("Title")
-    title.set_position(250.0, 30.0)
+    title.set_position(250.0, 120.0)  # Moved down for better visibility
     title.set_color(1.0, 1.0, 0.0, 1.0)  # Yellow for visibility
     title.set_font(title_font)
     title.set_alignment(ui.TextAlignment.Center)
     clip_panel.add_child(title)
     
-    subtitle = ui.Text("Green borders = clipping boundary")
-    subtitle.set_name("Subtitle")
-    subtitle.set_position(250.0, 65.0)
-    subtitle.set_color(0.0, 1.0, 0.0, 1.0)  # Green to match borders
-    subtitle.set_font(font)
-    subtitle.set_alignment(ui.TextAlignment.Center)
-    clip_panel.add_child(subtitle)
-    
-    # Large, bright colored rectangles that clearly extend beyond boundaries
+    # Simplified: Just 2 large rectangles (no textures)
     animated_rects = []
     
     # Red rectangle - moves vertically
-    rect1 = ui.Rectangle(250.0, 250.0)
+    rect1 = ui.Rectangle(300.0, 300.0)
     rect1.set_name("RedRect")
-    rect1.set_position(125.0, 150.0)
-    rect1.set_color(1.0, 0.0, 0.0, 1.0)  # Pure red
-    if gradient_img:
-        rect1.set_image(gradient_img)
+    rect1.set_position(100.0, 200.0)
+    rect1.set_color(1.0, 0.2, 0.2, 1.0)  # Bright red
     clip_panel.add_child(rect1)
     animated_rects.append(rect1)
     
     # Blue rectangle - moves vertically (opposite phase)
-    rect2 = ui.Rectangle(250.0, 250.0)
+    rect2 = ui.Rectangle(300.0, 300.0)
     rect2.set_name("BlueRect")
-    rect2.set_position(125.0, 350.0)
-    rect2.set_color(0.0, 0.5, 1.0, 1.0)  # Bright blue
-    if checker_img:
-        rect2.set_image(checker_img)
+    rect2.set_position(200.0, 400.0)
+    rect2.set_color(0.2, 0.5, 1.0, 1.0)  # Bright blue
     clip_panel.add_child(rect2)
     animated_rects.append(rect2)
     
-    # Yellow rectangle - moves horizontally
-    rect3 = ui.Rectangle(200.0, 150.0)
-    rect3.set_name("YellowRect")
-    rect3.set_position(150.0, 250.0)
-    rect3.set_color(1.0, 1.0, 0.0, 1.0)  # Bright yellow
-    if icon_img:
-        rect3.set_image(icon_img)
-    clip_panel.add_child(rect3)
-    animated_rects.append(rect3)
-    
-    # Animated text elements with bright colors
+    # Simplified: Just 1 animated text element
     animated_texts = []
     
     text1 = ui.Text("MOVING TEXT")
-    text1.set_name("Text1")
-    text1.set_position(250.0, 500.0)
+    text1.set_name("MovingText")
+    text1.set_position(250.0, 300.0)
     text1.set_color(1.0, 0.0, 1.0, 1.0)  # Magenta
     text1.set_font(title_font)
     text1.set_alignment(ui.TextAlignment.Center)
     clip_panel.add_child(text1)
     animated_texts.append(text1)
     
-    text2 = ui.Text("WATCH ME CLIP!")
-    text2.set_name("Text2")
-    text2.set_position(250.0, 100.0)
-    text2.set_color(0.0, 1.0, 1.0, 1.0)  # Cyan
-    text2.set_font(title_font)
-    text2.set_alignment(ui.TextAlignment.Center)
-    clip_panel.add_child(text2)
-    animated_texts.append(text2)
-    
     frame3d.add_child(clip_panel)
-    print("✓ Clipping panel created with 3 large rectangles and 2 text elements")
+    print("✓ Clipping panel created with 2 rectangles and 1 text element")
     
     print("\n" + "="*70)
     print("Scene Hierarchy:")
@@ -235,9 +197,9 @@ def main():
     print("└── Frame2D (ClippingPanel) - CLIPPING ENABLED")
     print("    ├── Dark background")
     print("    ├── Bright green borders (clipping boundary)")
-    print("    ├── Title and subtitle text")
-    print("    ├── 3 large colored rectangles with textures")
-    print("    └── 2 animated text elements")
+    print("    ├── Title text (yellow)")
+    print("    ├── 2 large colored rectangles (red, blue)")
+    print("    └── 1 animated text element (magenta)")
     print("="*70)
     print()
     
@@ -266,24 +228,15 @@ def main():
         # Animate rectangles with clear, visible movement
         # Red rectangle - vertical oscillation
         offset_y1 = math.sin(time * 0.5) * 250.0  # Large movement to show clipping
-        animated_rects[0].set_position(125.0, 150.0 + offset_y1)
+        animated_rects[0].set_position(100.0, 200.0 + offset_y1)
         
         # Blue rectangle - vertical oscillation (opposite phase)
         offset_y2 = math.sin(time * 0.5 + 3.14) * 250.0  # 180 degrees out of phase
-        animated_rects[1].set_position(125.0, 350.0 + offset_y2)
-        
-        # Yellow rectangle - horizontal oscillation
-        offset_x = math.sin(time * 0.6) * 200.0  # Horizontal movement
-        animated_rects[2].set_position(150.0 + offset_x, 250.0)
+        animated_rects[1].set_position(200.0, 400.0 + offset_y2)
         
         # Animate text with clear movement
-        # Top text - moves vertically
-        text_offset_y1 = math.sin(time * 0.7) * 300.0
-        animated_texts[0].set_position(250.0, 500.0 + text_offset_y1)
-        
-        # Bottom text - moves vertically (opposite)
-        text_offset_y2 = math.sin(time * 0.7 + 3.14) * 300.0
-        animated_texts[1].set_position(250.0, 100.0 + text_offset_y2)
+        text_offset_y = math.sin(time * 0.7) * 300.0
+        animated_texts[0].set_position(250.0, 300.0 + text_offset_y)
         
         # Very subtle 3D rotation for depth
         frame3d.set_rotation(math.sin(time * 0.1) * 0.02, math.cos(time * 0.08) * 0.01, 0.0)

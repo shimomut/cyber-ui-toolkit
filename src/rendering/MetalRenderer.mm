@@ -677,9 +677,10 @@ void MetalRenderer::renderText(Text* text, const float* mvpMatrix) {
         }
         
         // Create vertices for text quad with flipped texture coordinates
-        // Scale back down to logical size (texture is at Retina resolution)
-        float hw = (width / scaleFactor) * 0.5f;
-        float hh = (height / scaleFactor) * 0.5f;
+        // Texture is at Retina resolution, but we want logical size for rendering
+        // The texture width/height are already in pixels, so we need to scale to logical points
+        float hw = width * 0.5f;
+        float hh = height * 0.5f;
         
         Vertex vertices[] = {
             {{-hw, -hh}, {r, g, b, a}, {0.0f, 1.0f}},  // Top-left (flip V)

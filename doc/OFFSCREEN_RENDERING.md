@@ -21,6 +21,19 @@ Off-screen rendering solves this by:
 3. **Texture as Quad**: The resulting texture is then rendered as a textured quad with 3D transformations applied
 4. **Correct Clipping**: Since clipping happened in 2D space before 3D transformation, it remains correct
 
+## Coordinate System Boundary
+
+Off-screen rendering serves as the boundary between two coordinate systems:
+
+1. **3D Space (Scene)**: Y-up, Frame3D positioned by center
+2. **2D Space (Frame3D children)**: Y-down, top-left origin
+
+The off-screen render pass:
+- Renders Frame3D's children in 2D space (orthographic, Y-down)
+- Produces a texture
+- This texture is then rendered as a quad in 3D space (perspective, Y-up)
+- This separation allows Frame3D to exist in 3D space while its children use 2D coordinates
+
 ## Implementation Details
 
 ### Frame3D Class Changes

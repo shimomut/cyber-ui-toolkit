@@ -10,6 +10,27 @@ The toolkit now supports a hierarchical scene graph with two main container type
 
 All 2D objects (Frame2D, Shape2D, and their subclasses) inherit from **Object2D**, which provides the base hierarchy functionality.
 
+## Coordinate Systems
+
+### Scene (3D Space)
+- **Coordinate System**: 3D space with Y-up
+- **Y-axis**: Up is positive, Down is negative
+- **Z-axis**: Forward (toward camera) is negative, Backward is positive
+- **Contains**: Frame3D objects positioned in 3D space
+
+### Frame3D (3D Positioning, 2D Content)
+- **Frame3D Position**: Centered in 3D space (Y-up)
+- **Frame3D Children**: Exist in 2D space (Y-down, top-left origin)
+- **Origin for Children**: (0, 0) is at top-left corner of Frame3D
+- **Boundary**: Off-screen rendering separates 3D space from 2D space
+- **Always Uses**: Off-screen rendering to texture
+
+### Frame2D and Object2D (2D Space)
+- **Coordinate System**: 2D space with Y-down
+- **Origin**: Top-left corner (0, 0)
+- **Y-axis**: Down is positive, Up is negative
+- **Position**: Refers to top-left corner of the object
+
 ## Class Hierarchy
 
 ```

@@ -189,13 +189,28 @@ renderer->shutdown();
 
 ## Coordinate Systems
 
-### 3D Space (Frame3D)
+### Scene Hierarchy and Coordinate Systems
+
+**Scene (SceneRoot):**
+- 3D space with Y-up
+- Contains Frame3D objects
+- Camera looks down negative Z axis by default
+
+**Frame3D:**
+- Positioned in 3D space (center-based, Y-up)
+- Children exist in 2D space (top-left origin, Y-down)
+- Off-screen rendering is the boundary between 3D and 2D space
+
+**Frame2D and Object2D:**
+- 2D space with Y-down
+- Top-left origin (0, 0)
+
+### 3D Space (Scene, Frame3D Position)
 - **X**: Right (positive) / Left (negative)
 - **Y**: Up (positive) / Down (negative)
 - **Z**: Forward (negative) / Backward (positive)
-- Camera looks down negative Z axis by default
 
-### 2D Space (Object2D)
+### 2D Space (Frame3D Children, Frame2D, Object2D)
 - **X**: Right (positive) / Left (negative)
 - **Y**: Down (positive) / Up (negative)
 - **Coordinate System**: Top-left origin

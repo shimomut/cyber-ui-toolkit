@@ -435,35 +435,21 @@ void MetalRenderer::renderObject2D(Object2D* object, const float* mvpMatrix) {
         float width, height;
         frame2d->getSize(width, height);
         
-        // Frame2D children use top-left origin coordinate system
-        // Frame2D's position is its center, so we need to offset children
-        // to make (0,0) in child coordinates map to top-left corner
-        float halfWidth = width * 0.5f;
-        float halfHeight = height * 0.5f;
-        
-        // Create offset matrix to move origin from center to top-left
-        float offsetMatrix[16] = {
-            1, 0, 0, 0,
-            0, 1, 0, 0,
-            0, 0, 1, 0,
-            -halfWidth, -halfHeight, 0, 1
-        };
-        
-        // Combine with Frame2D's MVP
-        float frame2dMVP[16];
-        multiplyMatrices(objectMVP, offsetMatrix, frame2dMVP);
-        
         // Handle clipping for Frame2D
         bool hasClipping = frame2d->isClippingEnabled();
         
         if (hasClipping) {
-            // Clipping rect covers (0, 0) to (width, height) in Frame2D's coordinate system
-            pushScissorRect(0, 0, width, height, frame2dMVP);
+            // Clipping rect centered at Frame2D position
+            float halfWidth = width * 0.5f;
+            float halfHeight = height * 0.5f;
+            pushScissorRect(-halfWidth, -halfHeight, width, height, objectMVP);
         }
         
-        // Render Frame2D children with offset MVP
+        // Render Frame2D children
+        // NOTE: Frame2D children use CENTERED coordinates, not top-left
+        // Child at (0,0) will be at Frame2D's center
         for (const auto& child : frame2d->getChildren()) {
-            renderObject2D(child.get(), frame2dMVP);
+            renderObject2D(child.get(), objectMVP);
         }
         
         if (hasClipping) {

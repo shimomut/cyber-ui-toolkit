@@ -110,18 +110,16 @@ frame2d.set_size(size[0], size[1])
 
 ### Coordinate System
 
-**Current behavior** (after removing offset):
-- Frame2D children use **centered coordinates**
-- Child at (0, 0) is at Frame2D's center
-- Child at (-250, -300) is at top-left of a 500x600 Frame2D
-- Child at (250, 300) is at bottom-right
+**Current behavior** (FIXED - top-left origin implemented):
+- Frame2D children use **top-left origin coordinates**
+- Child at (0, 0) is at Frame2D's top-left corner
+- Child at (500, 600) is at bottom-right of a 500x600 Frame2D
+- Clipping rect uses (0, 0) to (width, height) coordinates
 
-**Original intention** (not working):
-- Frame2D children should use **top-left origin**
-- Child at (0, 0) should be at Frame2D's top-left corner
-- Child at (500, 600) should be at bottom-right
-
-The top-left origin system doesn't work correctly with perspective projection because the offset transformation gets applied in clip space instead of world space.
+**Frame3D children behavior** (centered):
+- Frame3D children (Object2D instances) use **centered coordinates**
+- Child at (0, 0) is at Frame3D's center
+- This is the standard Object2D coordinate system
 
 ### Recommended Solutions
 
@@ -174,8 +172,10 @@ This will show the actual rendered size vs expected size.
 
 ### Status
 
-**Current state**: Frame2D renders at incorrect size due to perspective projection.
+**Current state**: 
+- ✅ Frame2D children now use top-left origin coordinate system (FIXED)
+- ⚠️ Frame2D renders at incorrect size due to perspective projection (KNOWN ISSUE)
 
-**Workaround**: Scale up Frame2D size by 6-7x, or use orthographic projection.
+**Workaround for size issue**: Scale up Frame2D size by 6-7x, or use orthographic projection.
 
 **Long-term fix**: Requires architectural changes to separate 2D UI rendering from 3D scene rendering.

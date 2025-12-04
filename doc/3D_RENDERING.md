@@ -198,7 +198,10 @@ renderer->shutdown();
 ### 2D Space (Object2D)
 - **X**: Right (positive) / Left (negative)
 - **Y**: Down (positive) / Up (negative)
-- Origin at top-left of parent
+- **Coordinate System**: Top-left origin
+  - Frame2D children are positioned relative to Frame2D's top-left corner
+  - Rectangle/Text position refers to their top-left corner
+  - Example: `rect.set_position(0, 0)` places rectangle's top-left at (0, 0)
 
 ## Performance Considerations
 

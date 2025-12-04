@@ -134,17 +134,17 @@ def main():
     left_panel.set_clipping_enabled(True)
     print("✓ Created Frame2D: LeftPanel (with clipping)")
     
-    # Background for left panel
+    # Background for left panel (centered in 250x650 area)
     left_bg = ui.Rectangle(250.0, 650.0)
     left_bg.set_name("LeftPanelBackground")
-    left_bg.set_position(0.0, 0.0)
+    left_bg.set_position(125.0, 325.0)  # Center of Frame2D (top-left origin)
     left_bg.set_color(0.15, 0.15, 0.2, 1.0)
     left_panel.add_child(left_bg)
     
     # Title rectangle in left panel
     title_rect = ui.Rectangle(230.0, 50.0)
     title_rect.set_name("TitleRect")
-    title_rect.set_position(10.0, 10.0)
+    title_rect.set_position(125.0, 35.0)  # Centered horizontally, near top
     title_rect.set_color(0.3, 0.5, 0.8, 1.0)
     if gradient_img:
         title_rect.set_image(gradient_img)
@@ -154,7 +154,7 @@ def main():
     for i in range(6):
         content_rect = ui.Rectangle(210.0, 80.0)
         content_rect.set_name(f"ContentRect{i+1}")
-        content_rect.set_position(20.0, 80.0 + i * 95.0)
+        content_rect.set_position(125.0, 120.0 + i * 95.0)  # Centered horizontally
         
         # Alternate colors
         if i % 2 == 0:
@@ -178,43 +178,43 @@ def main():
     center_panel.set_clipping_enabled(False)
     print("✓ Created Frame2D: CenterPanel (no clipping)")
     
-    # Background
+    # Background (centered in 300x550 area)
     center_bg = ui.Rectangle(300.0, 550.0)
     center_bg.set_name("CenterBackground")
-    center_bg.set_position(0.0, 0.0)
+    center_bg.set_position(150.0, 275.0)  # Center of Frame2D
     center_bg.set_color(0.1, 0.15, 0.15, 1.0)
     center_panel.add_child(center_bg)
     
     # Header
     center_header = ui.Rectangle(280.0, 60.0)
     center_header.set_name("CenterHeader")
-    center_header.set_position(10.0, 10.0)
+    center_header.set_position(150.0, 40.0)  # Centered horizontally, near top
     center_header.set_color(0.4, 0.3, 0.6, 1.0)
     if gradient_img:
         center_header.set_image(gradient_img)
     center_panel.add_child(center_header)
     
-    # Nested Frame2D inside center panel
+    # Nested Frame2D inside center panel (top-left origin positioning)
     nested_frame = ui.Frame2D()
     nested_frame.set_name("NestedFrame")
-    nested_frame.set_position(10.0, 90.0)
+    nested_frame.set_position(150.0, 310.0)  # Centered horizontally, below header
     nested_frame.set_size(280.0, 440.0)
     nested_frame.set_clipping_enabled(True)
     print("  ✓ Created nested Frame2D: NestedFrame (with clipping)")
     
-    # Nested frame background
+    # Nested frame background (centered in 280x440 area)
     nested_bg = ui.Rectangle(280.0, 440.0)
     nested_bg.set_name("NestedBackground")
-    nested_bg.set_position(0.0, 0.0)
+    nested_bg.set_position(140.0, 220.0)  # Center of nested Frame2D
     nested_bg.set_color(0.2, 0.25, 0.25, 1.0)
     nested_frame.add_child(nested_bg)
     
-    # Grid of rectangles in nested frame (4x4)
+    # Grid of rectangles in nested frame (4x4) - using top-left origin
     for row in range(4):
         for col in range(4):
             grid_rect = ui.Rectangle(60.0, 60.0)
             grid_rect.set_name(f"GridRect_{row}_{col}")
-            grid_rect.set_position(10.0 + col * 67.0, 10.0 + row * 67.0)
+            grid_rect.set_position(40.0 + col * 67.0, 40.0 + row * 67.0)  # Offset from top-left
             
             # Color based on position
             r = 0.3 + (col / 4.0) * 0.5
@@ -242,10 +242,10 @@ def main():
     right_panel.set_clipping_enabled(True)
     print("✓ Created Frame2D: RightPanel (with clipping)")
     
-    # Background
+    # Background (centered in 280x450 area)
     right_bg = ui.Rectangle(280.0, 450.0)
     right_bg.set_name("RightBackground")
-    right_bg.set_position(0.0, 0.0)
+    right_bg.set_position(140.0, 225.0)  # Center of Frame2D
     right_bg.set_color(0.15, 0.2, 0.15, 1.0)
     right_panel.add_child(right_bg)
     
@@ -254,7 +254,7 @@ def main():
     for i in range(5):
         item = ui.Rectangle(240.0, 140.0)
         item.set_name(f"CarouselItem{i+1}")
-        item.set_position(20.0, 30.0 + i * 80.0)
+        item.set_position(140.0, 100.0 + i * 80.0)  # Centered horizontally
         
         # Different colors for each item
         hue = i / 5.0
@@ -327,12 +327,12 @@ def main():
         
         # Animate nested frame position (vertical oscillation)
         offset_y = math.sin(time * 2.0) * 30.0
-        nested_frame.set_position(10.0, 90.0 + offset_y)
+        nested_frame.set_position(150.0, 310.0 + offset_y)
         
         # Animate carousel items (staggered vertical movement)
         for i, item in enumerate(carousel_items):
             item_offset = math.sin(time * 1.5 + i * 0.5) * 15.0
-            item.set_position(20.0, 30.0 + i * 80.0 + item_offset)
+            item.set_position(140.0, 100.0 + i * 80.0 + item_offset)
         
         if renderer.begin_frame():
             # Render entire scene with automatic tree traversal

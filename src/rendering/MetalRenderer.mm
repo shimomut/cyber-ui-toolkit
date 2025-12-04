@@ -470,21 +470,35 @@ void MetalRenderer::renderObject2D(Object2D* object, const float* mvpMatrix) {
         float width, height;
         frame2d->getSize(width, height);
         
+        // Create offset matrix to move origin from center to top-left
+        // Frame2D children use top-left origin coordinate system
+        float halfWidth = width * 0.5f;
+        float halfHeight = height * 0.5f;
+        
+        float offsetMatrix[16] = {
+            1, 0, 0, 0,
+            0, 1, 0, 0,
+            0, 0, 1, 0,
+            -halfWidth, -halfHeight, 0, 1  // Offset to top-left
+        };
+        
+        // Combine with Frame2D's MVP
+        float frame2dMVP[16];
+        multiplyMatrices(objectMVP, offsetMatrix, frame2dMVP);
+        
         // Handle clipping for Frame2D
         bool hasClipping = frame2d->isClippingEnabled();
         
         if (hasClipping) {
-            // Clipping rect centered at Frame2D position
-            float halfWidth = width * 0.5f;
-            float halfHeight = height * 0.5f;
-            pushScissorRect(-halfWidth, -halfHeight, width, height, objectMVP);
+            // Clipping rect in top-left origin coordinates (0, 0) to (width, height)
+            pushScissorRect(0, 0, width, height, frame2dMVP);
         }
         
-        // Render Frame2D children
-        // NOTE: Frame2D children use CENTERED coordinates, not top-left
-        // Child at (0,0) will be at Frame2D's center
+        // Render Frame2D children with top-left origin coordinate system
+        // Child at (0, 0) will be at Frame2D's top-left corner
+        // Child at (width, height) will be at Frame2D's bottom-right corner
         for (const auto& child : frame2d->getChildren()) {
-            renderObject2D(child.get(), objectMVP);
+            renderObject2D(child.get(), frame2dMVP);
         }
         
         if (hasClipping) {
@@ -520,17 +534,15 @@ void MetalRenderer::renderRectangle(Rectangle* rect, const float* mvpMatrix) {
         float r, g, b, a;
         rect->getColor(r, g, b, a);
         
-        // Create vertices in local space (centered at origin for proper rotation)
-        float hw = width * 0.5f;
-        float hh = height * 0.5f;
-        
+        // Create vertices with top-left origin (position refers to top-left corner)
+        // This matches the Object2D coordinate system: "Origin at top-left of parent"
         Vertex vertices[] = {
-            {{-hw, -hh}, {r, g, b, a}, {0.0f, 1.0f}},  // Top-left (flip V)
-            {{ hw, -hh}, {r, g, b, a}, {1.0f, 1.0f}},  // Top-right (flip V)
-            {{-hw,  hh}, {r, g, b, a}, {0.0f, 0.0f}},  // Bottom-left (flip V)
-            {{ hw, -hh}, {r, g, b, a}, {1.0f, 1.0f}},  // Top-right (flip V)
-            {{ hw,  hh}, {r, g, b, a}, {1.0f, 0.0f}},  // Bottom-right (flip V)
-            {{-hw,  hh}, {r, g, b, a}, {0.0f, 0.0f}},  // Bottom-left (flip V)
+            {{0.0f, 0.0f}, {r, g, b, a}, {0.0f, 1.0f}},      // Top-left (flip V)
+            {{width, 0.0f}, {r, g, b, a}, {1.0f, 1.0f}},     // Top-right (flip V)
+            {{0.0f, height}, {r, g, b, a}, {0.0f, 0.0f}},    // Bottom-left (flip V)
+            {{width, 0.0f}, {r, g, b, a}, {1.0f, 1.0f}},     // Top-right (flip V)
+            {{width, height}, {r, g, b, a}, {1.0f, 0.0f}},   // Bottom-right (flip V)
+            {{0.0f, height}, {r, g, b, a}, {0.0f, 0.0f}},    // Bottom-left (flip V)
         };
         
         // Create vertex buffer
@@ -697,19 +709,20 @@ void MetalRenderer::renderText(Text* text, const float* mvpMatrix) {
             newTexturesCreatedThisFrame_ = true;
         }
         
-        // Create vertices for text quad with flipped texture coordinates
+        // Create vertices for text quad with top-left origin
         // Texture is at Retina resolution, but we want logical size for rendering
         // The texture width/height are already in pixels, so we need to scale to logical points
-        float hw = width * 0.5f;
-        float hh = height * 0.5f;
+        // Position refers to top-left corner (matches Object2D coordinate system)
+        float logicalWidth = width / scaleFactor;
+        float logicalHeight = height / scaleFactor;
         
         Vertex vertices[] = {
-            {{-hw, -hh}, {r, g, b, a}, {0.0f, 1.0f}},  // Top-left (flip V)
-            {{ hw, -hh}, {r, g, b, a}, {1.0f, 1.0f}},  // Top-right (flip V)
-            {{-hw,  hh}, {r, g, b, a}, {0.0f, 0.0f}},  // Bottom-left (flip V)
-            {{ hw, -hh}, {r, g, b, a}, {1.0f, 1.0f}},  // Top-right (flip V)
-            {{ hw,  hh}, {r, g, b, a}, {1.0f, 0.0f}},  // Bottom-right (flip V)
-            {{-hw,  hh}, {r, g, b, a}, {0.0f, 0.0f}},  // Bottom-left (flip V)
+            {{0.0f, 0.0f}, {r, g, b, a}, {0.0f, 1.0f}},                    // Top-left (flip V)
+            {{logicalWidth, 0.0f}, {r, g, b, a}, {1.0f, 1.0f}},            // Top-right (flip V)
+            {{0.0f, logicalHeight}, {r, g, b, a}, {0.0f, 0.0f}},           // Bottom-left (flip V)
+            {{logicalWidth, 0.0f}, {r, g, b, a}, {1.0f, 1.0f}},            // Top-right (flip V)
+            {{logicalWidth, logicalHeight}, {r, g, b, a}, {1.0f, 0.0f}},   // Bottom-right (flip V)
+            {{0.0f, logicalHeight}, {r, g, b, a}, {0.0f, 0.0f}},           // Bottom-left (flip V)
         };
         
         // Create vertex buffer

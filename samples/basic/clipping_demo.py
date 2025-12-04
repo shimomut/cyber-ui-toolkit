@@ -115,10 +115,10 @@ def main():
     clip_panel.set_size(500.0, 600.0)
     clip_panel.set_clipping_enabled(True)
     
-    # Dark background for contrast
+    # Dark background for contrast - fills entire Frame2D from top-left
     panel_bg = ui.Rectangle(500.0, 600.0)
     panel_bg.set_name("PanelBackground")
-    panel_bg.set_position(0.0, 0.0)
+    panel_bg.set_position(0.0, 0.0)  # Top-left corner (Rectangle uses top-left origin)
     panel_bg.set_color(0.05, 0.05, 0.08, 1.0)  # Very dark background
     clip_panel.add_child(panel_bg)
     
@@ -127,35 +127,35 @@ def main():
     
     border_top = ui.Rectangle(500.0, border_width)
     border_top.set_name("BorderTop")
-    border_top.set_position(0.0, 0.0)
+    border_top.set_position(0.0, 0.0)  # Top edge
     border_top.set_color(0.0, 1.0, 0.0, 1.0)  # Bright green
     clip_panel.add_child(border_top)
     
     border_bottom = ui.Rectangle(500.0, border_width)
     border_bottom.set_name("BorderBottom")
-    border_bottom.set_position(0.0, 600.0 - border_width)
+    border_bottom.set_position(0.0, 600.0 - border_width)  # Bottom edge
     border_bottom.set_color(0.0, 1.0, 0.0, 1.0)
     clip_panel.add_child(border_bottom)
     
     border_left = ui.Rectangle(border_width, 600.0)
     border_left.set_name("BorderLeft")
-    border_left.set_position(0.0, 0.0)
+    border_left.set_position(0.0, 0.0)  # Left edge
     border_left.set_color(0.0, 1.0, 0.0, 1.0)
     clip_panel.add_child(border_left)
     
     border_right = ui.Rectangle(border_width, 600.0)
     border_right.set_name("BorderRight")
-    border_right.set_position(500.0 - border_width, 0.0)
+    border_right.set_position(500.0 - border_width, 0.0)  # Right edge
     border_right.set_color(0.0, 1.0, 0.0, 1.0)
     clip_panel.add_child(border_right)
     
-    # Title - larger and more visible, positioned lower
+    # Title - larger and more visible, positioned from top-left origin
     title = ui.Text("CLIPPING DEMO")
     title.set_name("Title")
-    title.set_position(250.0, 120.0)  # Moved down for better visibility
+    title.set_position(100.0, 20.0)  # Near top-left
     title.set_color(1.0, 1.0, 0.0, 1.0)  # Yellow for visibility
     title.set_font(title_font)
-    title.set_alignment(ui.TextAlignment.Center)
+    title.set_alignment(ui.TextAlignment.Left)
     clip_panel.add_child(title)
     
     # Simplified: Just 2 large rectangles (no textures)
@@ -164,7 +164,7 @@ def main():
     # Red rectangle - moves vertically
     rect1 = ui.Rectangle(300.0, 300.0)
     rect1.set_name("RedRect")
-    rect1.set_position(100.0, 200.0)
+    rect1.set_position(100.0, 100.0)  # Position from top-left
     rect1.set_color(1.0, 0.2, 0.2, 1.0)  # Bright red
     clip_panel.add_child(rect1)
     animated_rects.append(rect1)
@@ -172,7 +172,7 @@ def main():
     # Blue rectangle - moves vertically (opposite phase)
     rect2 = ui.Rectangle(300.0, 300.0)
     rect2.set_name("BlueRect")
-    rect2.set_position(200.0, 400.0)
+    rect2.set_position(100.0, 250.0)  # Position from top-left
     rect2.set_color(0.2, 0.5, 1.0, 1.0)  # Bright blue
     clip_panel.add_child(rect2)
     animated_rects.append(rect2)
@@ -182,10 +182,10 @@ def main():
     
     text1 = ui.Text("MOVING TEXT")
     text1.set_name("MovingText")
-    text1.set_position(250.0, 300.0)
+    text1.set_position(150.0, 200.0)  # Position from top-left
     text1.set_color(1.0, 0.0, 1.0, 1.0)  # Magenta
     text1.set_font(title_font)
-    text1.set_alignment(ui.TextAlignment.Center)
+    text1.set_alignment(ui.TextAlignment.Left)
     clip_panel.add_child(text1)
     animated_texts.append(text1)
     
@@ -230,15 +230,15 @@ def main():
         # Animate rectangles with clear, visible movement (10x slower)
         # Red rectangle - vertical oscillation
         offset_y1 = math.sin(time * 0.05) * 250.0  # Large movement to show clipping
-        animated_rects[0].set_position(100.0, 200.0 + offset_y1)
+        animated_rects[0].set_position(100.0, 100.0 + offset_y1)
         
         # Blue rectangle - vertical oscillation (opposite phase)
         offset_y2 = math.sin(time * 0.05 + 3.14) * 250.0  # 180 degrees out of phase
-        animated_rects[1].set_position(200.0, 400.0 + offset_y2)
+        animated_rects[1].set_position(100.0, 250.0 + offset_y2)
         
         # Animate text with clear movement (10x slower)
         text_offset_y = math.sin(time * 0.07) * 300.0
-        animated_texts[0].set_position(250.0, 300.0 + text_offset_y)
+        animated_texts[0].set_position(150.0, 200.0 + text_offset_y)
         
         # 3D rotation now works with off-screen rendering!
         # Content is rendered to texture with proper clipping, then the texture is rotated

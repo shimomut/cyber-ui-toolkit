@@ -4,7 +4,8 @@ Capture a single frame from the clipping demo and verify it's rendering correctl
 """
 
 import sys
-sys.path.insert(0, '../build')
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'build'))
 
 import cyber_ui_core as ui
 from PIL import Image as PILImage

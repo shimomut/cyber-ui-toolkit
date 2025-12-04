@@ -432,25 +432,38 @@ void MetalRenderer::renderObject2D(Object2D* object, const float* mvpMatrix) {
     // Check if it's a Frame2D (needs to be checked before Rectangle since Frame2D inherits from Object2D)
     Frame2D* frame2d = dynamic_cast<Frame2D*>(object);
     if (frame2d) {
+        float width, height;
+        frame2d->getSize(width, height);
+        
+        // Frame2D children use top-left origin coordinate system
+        // Frame2D's position is its center, so we need to offset children
+        // to make (0,0) in child coordinates map to top-left corner
+        float halfWidth = width * 0.5f;
+        float halfHeight = height * 0.5f;
+        
+        // Create offset matrix to move origin from center to top-left
+        float offsetMatrix[16] = {
+            1, 0, 0, 0,
+            0, 1, 0, 0,
+            0, 0, 1, 0,
+            -halfWidth, -halfHeight, 0, 1
+        };
+        
+        // Combine with Frame2D's MVP
+        float frame2dMVP[16];
+        multiplyMatrices(objectMVP, offsetMatrix, frame2dMVP);
+        
         // Handle clipping for Frame2D
         bool hasClipping = frame2d->isClippingEnabled();
         
         if (hasClipping) {
-            float width, height;
-            frame2d->getSize(width, height);
-            // Frame2D children are positioned relative to Frame2D's position
-            // The clipping region should cover from (0, 0) to (width, height) in Frame2D's local space
-            // Since Frame2D's position is at its center (like all Object2D), we need to offset
-            // the scissor rect to match where children will actually be rendered
-            // Children at (0, 0) will be at Frame2D's center, so scissor should be centered too
-            float halfWidth = width * 0.5f;
-            float halfHeight = height * 0.5f;
-            pushScissorRect(-halfWidth, -halfHeight, width, height, objectMVP);
+            // Clipping rect covers (0, 0) to (width, height) in Frame2D's coordinate system
+            pushScissorRect(0, 0, width, height, frame2dMVP);
         }
         
-        // Render Frame2D children
+        // Render Frame2D children with offset MVP
         for (const auto& child : frame2d->getChildren()) {
-            renderObject2D(child.get(), objectMVP);
+            renderObject2D(child.get(), frame2dMVP);
         }
         
         if (hasClipping) {
@@ -572,11 +585,17 @@ void MetalRenderer::renderText(Text* text, const float* mvpMatrix) {
             isBold = text->getFont()->isBold();
         }
         
+        // Scale font size for Retina displays
+        MTKView* view = (__bridge MTKView*)metalView_;
+        CGFloat scaleFactor = [view.window backingScaleFactor];
+        if (scaleFactor <= 0) scaleFactor = 2.0;  // Default to 2x if window not available
+        float renderFontSize = fontSize * scaleFactor;
+        
         std::string textStr = text->getText();
         if (textStr.empty()) return;
         
-        // Create cache key
-        std::string cacheKey = textStr + "|" + std::to_string(fontSize) + "|" + (isBold ? "B" : "R");
+        // Create cache key (include scale factor to cache different resolutions)
+        std::string cacheKey = textStr + "|" + std::to_string(renderFontSize) + "|" + (isBold ? "B" : "R");
         
         // Check cache
         id<MTLTexture> texture = nil;
@@ -591,8 +610,8 @@ void MetalRenderer::renderText(Text* text, const float* mvpMatrix) {
             // Generate new texture
             NSString* nsText = [NSString stringWithUTF8String:textStr.c_str()];
             
-            // Create font
-            NSFont* font = isBold ? [NSFont boldSystemFontOfSize:fontSize] : [NSFont systemFontOfSize:fontSize];
+            // Create font at scaled size for Retina rendering
+            NSFont* font = isBold ? [NSFont boldSystemFontOfSize:renderFontSize] : [NSFont systemFontOfSize:renderFontSize];
             
             // Calculate text size
             NSDictionary* attributes = @{NSFontAttributeName: font};
@@ -658,8 +677,9 @@ void MetalRenderer::renderText(Text* text, const float* mvpMatrix) {
         }
         
         // Create vertices for text quad with flipped texture coordinates
-        float hw = width * 0.5f;
-        float hh = height * 0.5f;
+        // Scale back down to logical size (texture is at Retina resolution)
+        float hw = (width / scaleFactor) * 0.5f;
+        float hh = (height / scaleFactor) * 0.5f;
         
         Vertex vertices[] = {
             {{-hw, -hh}, {r, g, b, a}, {0.0f, 1.0f}},  // Top-left (flip V)

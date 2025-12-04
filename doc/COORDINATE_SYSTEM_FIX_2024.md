@@ -2,30 +2,36 @@
 
 ## Summary
 
-Fixed the Frame2D coordinate system implementation to match documentation. Frame2D children now correctly use **top-left origin** coordinates, while Frame3D children use **centered** coordinates.
+Fixed the Frame2D coordinate system implementation to match documentation. Frame2D and its children now correctly use **top-left origin** coordinates.
+
+**Update (December 2024):** Fixed Frame2D positioning bug where Frame2D's own position was incorrectly treated as center-based instead of top-left origin.
 
 ## Changes Made
 
 ### Implementation Fix (src/rendering/MetalRenderer.mm)
 
-Added offset matrix transformation to convert Frame2D's centered position to top-left origin for its children:
+**Original Fix:** Added offset matrix transformation for Frame2D children coordinate system.
+
+**Updated Fix (December 2024):** Corrected to treat Frame2D's position as top-left origin (not center):
 
 ```objective-c
-// Create offset matrix to move origin from center to top-left
-float halfWidth = width * 0.5f;
-float halfHeight = height * 0.5f;
-
+// Frame2D position is already top-left origin (Object2D coordinate system)
+// We only need to set up the coordinate system for children:
+// - Y-axis flip (Y+ down for 2D UI)
+// - Origin at (0, 0) = Frame2D's top-left corner
 float offsetMatrix[16] = {
     1, 0, 0, 0,
-    0, 1, 0, 0,
+    0, -1, 0, 0,  // Flip Y-axis: Y+ down for 2D UI
     0, 0, 1, 0,
-    -halfWidth, -halfHeight, 0, 1  // Offset to top-left
+    0, height, 0, 1  // Move origin to top-left with Y-flip
 };
 
 // Combine with Frame2D's MVP
 float frame2dMVP[16];
 multiplyMatrices(objectMVP, offsetMatrix, frame2dMVP);
 ```
+
+The key change: Removed the `-halfWidth, halfHeight` offset because Frame2D's position already represents its top-left corner, not its center.
 
 ### Coordinate System Behavior
 

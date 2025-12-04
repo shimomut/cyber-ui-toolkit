@@ -24,7 +24,8 @@ MetalRenderer::MetalRenderer()
     : device_(nullptr), commandQueue_(nullptr), pipelineState_(nullptr),
       window_(nullptr), metalView_(nullptr), commandBuffer_(nullptr), renderEncoder_(nullptr),
       initialized_(false), shouldClose_(false), windowWidth_(800), windowHeight_(600),
-      newTexturesCreatedThisFrame_(false) {
+      newTexturesCreatedThisFrame_(false),
+      currentRenderTargetWidth_(0), currentRenderTargetHeight_(0) {
 }
 
 MetalRenderer::~MetalRenderer() {
@@ -278,6 +279,10 @@ bool MetalRenderer::beginFrame() {
         scissor.width = drawableSize.width;
         scissor.height = drawableSize.height;
         [renderEncoder setScissorRect:scissor];
+        
+        // Store current render target dimensions for scissor rect calculations
+        currentRenderTargetWidth_ = static_cast<int>(drawableSize.width);
+        currentRenderTargetHeight_ = static_cast<int>(drawableSize.height);
         
         return true;
     }
@@ -846,19 +851,24 @@ void MetalRenderer::renderFrame3DToTexture(Frame3D* frame) {
         id<MTLRenderPipelineState> pipelineState = (__bridge id<MTLRenderPipelineState>)pipelineState_;
         [offscreenEncoder setRenderPipelineState:pipelineState];
         
-        // Store current encoder and command buffer
+        // Store current encoder, command buffer, and render target dimensions
         void* savedEncoder = renderEncoder_;
         void* savedCommandBuffer = commandBuffer_;
+        int savedRenderTargetWidth = currentRenderTargetWidth_;
+        int savedRenderTargetHeight = currentRenderTargetHeight_;
         
-        // Use off-screen encoder temporarily
-        renderEncoder_ = (__bridge_retained void*)offscreenEncoder;
-        commandBuffer_ = (__bridge_retained void*)offscreenCommandBuffer;
-        
-        // Create orthographic projection for 2D rendering
-        // This matches the main rendering coordinate system
+        // Get render target size
         int rtWidth, rtHeight;
         frame->getRenderTargetSize(rtWidth, rtHeight);
         
+        // Use off-screen encoder and dimensions temporarily
+        renderEncoder_ = (__bridge_retained void*)offscreenEncoder;
+        commandBuffer_ = (__bridge_retained void*)offscreenCommandBuffer;
+        currentRenderTargetWidth_ = rtWidth;
+        currentRenderTargetHeight_ = rtHeight;
+        
+        // Create orthographic projection for 2D rendering
+        // This matches the main rendering coordinate system
         float orthoMatrix[16] = {
             2.0f / rtWidth, 0, 0, 0,
             0, -2.0f / rtHeight, 0, 0,  // Negative Y for standard coordinate system
@@ -876,7 +886,7 @@ void MetalRenderer::renderFrame3DToTexture(Frame3D* frame) {
         [offscreenCommandBuffer commit];
         [offscreenCommandBuffer waitUntilCompleted];
         
-        // Restore original encoder and command buffer
+        // Restore original encoder, command buffer, and render target dimensions
         if (renderEncoder_) {
             CFRelease(renderEncoder_);
         }
@@ -885,6 +895,8 @@ void MetalRenderer::renderFrame3DToTexture(Frame3D* frame) {
         }
         renderEncoder_ = savedEncoder;
         commandBuffer_ = savedCommandBuffer;
+        currentRenderTargetWidth_ = savedRenderTargetWidth;
+        currentRenderTargetHeight_ = savedRenderTargetHeight;
     }
 }
 
@@ -1142,15 +1154,15 @@ void MetalRenderer::pushScissorRect(float x, float y, float width, float height,
             maxY = std::max(maxY, screenCorners[i][1]);
         }
         
-        // Get drawable size for clamping
-        MTKView* view = (__bridge MTKView*)metalView_;
-        CGSize drawableSize = [view drawableSize];
+        // Use stored render target dimensions (set in beginFrame or renderFrame3DToTexture)
+        float targetWidth = static_cast<float>(currentRenderTargetWidth_);
+        float targetHeight = static_cast<float>(currentRenderTargetHeight_);
         
         // Convert to integer pixel coordinates
         int scissorX = static_cast<int>(std::max(0.0f, minX));
         int scissorY = static_cast<int>(std::max(0.0f, minY));
-        int scissorWidth = static_cast<int>(std::min(static_cast<float>(drawableSize.width), maxX) - scissorX);
-        int scissorHeight = static_cast<int>(std::min(static_cast<float>(drawableSize.height), maxY) - scissorY);
+        int scissorWidth = static_cast<int>(std::min(targetWidth, maxX) - scissorX);
+        int scissorHeight = static_cast<int>(std::min(targetHeight, maxY) - scissorY);
         
         // Clamp to valid ranges
         scissorWidth = std::max(0, scissorWidth);
@@ -1177,13 +1189,13 @@ void MetalRenderer::pushScissorRect(float x, float y, float width, float height,
         scissorStack_.push_back({scissorX, scissorY, scissorWidth, scissorHeight});
         
         // Apply to Metal render encoder
-        id<MTLRenderCommandEncoder> renderEncoder = (__bridge id<MTLRenderCommandEncoder>)renderEncoder_;
+        id<MTLRenderCommandEncoder> encoder = (__bridge id<MTLRenderCommandEncoder>)renderEncoder_;
         MTLScissorRect metalScissor;
         metalScissor.x = scissorX;
         metalScissor.y = scissorY;
         metalScissor.width = scissorWidth;
         metalScissor.height = scissorHeight;
-        [renderEncoder setScissorRect:metalScissor];
+        [encoder setScissorRect:metalScissor];
     }
 }
 
@@ -1196,12 +1208,12 @@ void MetalRenderer::popScissorRect() {
         id<MTLRenderCommandEncoder> renderEncoder = (__bridge id<MTLRenderCommandEncoder>)renderEncoder_;
         
         if (scissorStack_.empty()) {
-            // Restore to full viewport
+            // Restore to full viewport using stored render target dimensions
             MTLScissorRect metalScissor;
             metalScissor.x = 0;
             metalScissor.y = 0;
-            metalScissor.width = windowWidth_;
-            metalScissor.height = windowHeight_;
+            metalScissor.width = static_cast<NSUInteger>(currentRenderTargetWidth_);
+            metalScissor.height = static_cast<NSUInteger>(currentRenderTargetHeight_);
             [renderEncoder setScissorRect:metalScissor];
         } else {
             // Restore to parent scissor rect
@@ -1228,15 +1240,13 @@ void MetalRenderer::transformPointToScreen(float x, float y, const float* mvpMat
         clipY /= clipW;
     }
     
-    // Get drawable size (accounts for Retina scaling)
-    @autoreleasepool {
-        MTKView* view = (__bridge MTKView*)metalView_;
-        CGSize drawableSize = [view drawableSize];
-        
-        // Convert from NDC [-1, 1] to screen space [0, width/height]
-        screenX = (clipX + 1.0f) * 0.5f * drawableSize.width;
-        screenY = (1.0f - clipY) * 0.5f * drawableSize.height;  // Flip Y for screen coordinates
-    }
+    // Use current render target dimensions (works for both main screen and off-screen textures)
+    float targetWidth = static_cast<float>(currentRenderTargetWidth_);
+    float targetHeight = static_cast<float>(currentRenderTargetHeight_);
+    
+    // Convert from NDC [-1, 1] to render target space [0, width/height]
+    screenX = (clipX + 1.0f) * 0.5f * targetWidth;
+    screenY = (1.0f - clipY) * 0.5f * targetHeight;  // Flip Y for screen coordinates
 }
 
 } // namespace CyberUI

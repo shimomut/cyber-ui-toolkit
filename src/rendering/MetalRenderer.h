@@ -77,6 +77,10 @@ private:
         int x, y, width, height;
     };
     std::vector<ScissorRect> scissorStack_;
+    
+    // Current render target dimensions (for scissor rect calculation)
+    int currentRenderTargetWidth_;
+    int currentRenderTargetHeight_;
 };
 
 } // namespace CyberUI

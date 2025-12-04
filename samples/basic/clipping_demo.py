@@ -140,7 +140,7 @@ def main():
     border_left = ui.Rectangle(border_width, 600.0)
     border_left.set_name("BorderLeft")
     border_left.set_position(0.0, 0.0)  # Left edge
-    border_left.set_color(0.0, 1.0, 1.0, 1.0)
+    border_left.set_color(0.0, 1.0, 1.0, 1.0) # Cyan
     clip_panel.add_child(border_left)
     
     border_right = ui.Rectangle(border_width, 600.0)

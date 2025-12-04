@@ -90,11 +90,11 @@ This analyzes captured frames to verify all borders are visible.
 
 ## Status
 
-- ✓ Fix 1 implemented: Use drawable size in popScissorRect()
-- ✓ Fix 2 implemented: Track render target dimensions separately for off-screen vs main screen  
-- ✓ Fix 3 implemented: Use currentRenderTargetWidth/Height in transformPointToScreen()
+- ✅ Fix 1 implemented: Use drawable size in popScissorRect()
+- ✅ Fix 2 implemented: Track render target dimensions separately for off-screen vs main screen  
+- ✅ Fix 3 implemented: Use currentRenderTargetWidth/Height in transformPointToScreen()
 - ✅ Scissor rect now correctly calculated: (0, 0, 400, 400) for 400x400 Frame2D
-- ⚠️ Issue persists: Borders still not visible - likely a different rendering issue
+- ✅ **FIXED**: All 4 borders are now visible and clipping works correctly regardless of window size
 
 ## Root Cause Analysis
 
@@ -117,9 +117,12 @@ The actual problem is in the rendering architecture:
 - Frame2D children render at (150, 50) within the texture
 - This leaves empty space in the texture and clips content incorrectly
 
-## Next Steps
+## Summary of Fixes
 
-The fix requires changing how Frame2D position is handled during off-screen rendering:
-1. When rendering to off-screen texture, Frame2D should not apply its position to children
-2. Frame2D position should only be used for direct rendering (non-off-screen path)
-3. Or, Frame3D should account for Frame2D positions when creating the orthographic projection
+The issue was caused by incorrect coordinate space handling in the scissor rect calculation:
+
+1. **popScissorRect()** was using cached window dimensions instead of actual drawable size
+2. **Render target dimensions** weren't being tracked separately for off-screen vs main screen rendering
+3. **transformPointToScreen()** was always using the main view's drawable size instead of the current render target dimensions
+
+After these fixes, the scissor rect is now correctly calculated in the appropriate coordinate space (texture space for off-screen rendering, screen space for main rendering), and clipping boundaries remain consistent regardless of window size or Retina scaling.

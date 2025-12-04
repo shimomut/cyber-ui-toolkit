@@ -89,6 +89,7 @@ PYBIND11_MODULE(cyber_ui_core, m) {
     // Frame3D - top-level 3D container
     py::class_<Frame3D, std::shared_ptr<Frame3D>>(m, "Frame3D")
         .def(py::init<>())
+        .def(py::init<int, int>())
         .def("add_child", &Frame3D::addChild)
         .def("remove_child", &Frame3D::removeChild)
         .def("set_position", &Frame3D::setPosition)
@@ -113,9 +114,13 @@ PYBIND11_MODULE(cyber_ui_core, m) {
         .def("is_visible", &Frame3D::isVisible)
         .def("set_name", &Frame3D::setName)
         .def("get_name", &Frame3D::getName)
-        .def("set_offscreen_rendering_enabled", &Frame3D::setOffscreenRenderingEnabled)
         .def("is_offscreen_rendering_enabled", &Frame3D::isOffscreenRenderingEnabled)
-        .def("set_render_target_size", &Frame3D::setRenderTargetSize)
+        .def("set_size", &Frame3D::setSize)
+        .def("get_size", [](const Frame3D& obj) {
+            int width, height;
+            obj.getSize(width, height);
+            return py::make_tuple(width, height);
+        })
         .def("get_render_target_size", [](const Frame3D& obj) {
             int width, height;
             obj.getRenderTargetSize(width, height);
@@ -143,6 +148,7 @@ PYBIND11_MODULE(cyber_ui_core, m) {
     // Frame2D - 2D container with clipping
     py::class_<Frame2D, Object2D, std::shared_ptr<Frame2D>>(m, "Frame2D")
         .def(py::init<>())
+        .def(py::init<float, float>())
         .def("set_size", &Frame2D::setSize)
         .def("get_size", [](const Frame2D& frame) {
             float w, h;

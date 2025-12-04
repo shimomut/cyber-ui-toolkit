@@ -8,6 +8,7 @@ namespace CyberUI {
 class Frame2D : public Object2D {
 public:
     Frame2D();
+    Frame2D(float width, float height);
     virtual ~Frame2D() = default;
 
     // Size for clipping region

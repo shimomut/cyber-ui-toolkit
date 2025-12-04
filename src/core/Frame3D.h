@@ -12,6 +12,7 @@ namespace CyberUI {
 class Frame3D {
 public:
     Frame3D();
+    Frame3D(int width, int height);
     virtual ~Frame3D() = default;
 
     // 3D Transform
@@ -37,11 +38,14 @@ public:
     void setName(const std::string& name) { name_ = name; }
     const std::string& getName() const { return name_; }
 
-    // Off-screen rendering configuration
-    void setOffscreenRenderingEnabled(bool enabled) { offscreenRenderingEnabled_ = enabled; }
-    bool isOffscreenRenderingEnabled() const { return offscreenRenderingEnabled_; }
+    // Off-screen rendering is always enabled for Frame3D
+    bool isOffscreenRenderingEnabled() const { return true; }
     
-    void setRenderTargetSize(int width, int height);
+    // Size configuration for render target
+    void setSize(int width, int height);
+    void getSize(int& width, int& height) const;
+    
+    // Legacy method for compatibility
     void getRenderTargetSize(int& width, int& height) const;
     
     // Render target texture (managed by renderer)
@@ -60,8 +64,7 @@ protected:
     bool visible_;
     std::string name_;
     
-    // Off-screen rendering support
-    bool offscreenRenderingEnabled_;
+    // Off-screen rendering support (always enabled)
     int renderTargetWidth_;
     int renderTargetHeight_;
     void* renderTargetTexture_;  // Opaque pointer to renderer-specific texture

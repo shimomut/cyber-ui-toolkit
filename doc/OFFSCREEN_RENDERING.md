@@ -26,15 +26,18 @@ Off-screen rendering solves this by:
 ### Frame3D Class Changes
 
 **New Members:**
-- `offscreenRenderingEnabled_`: Boolean flag to enable/disable off-screen rendering
 - `renderTargetWidth_`, `renderTargetHeight_`: Size of the render target texture
 - `renderTargetTexture_`: Opaque pointer to the renderer-specific texture
 
 **New Methods:**
-- `setOffscreenRenderingEnabled(bool)`: Enable/disable off-screen rendering
-- `isOffscreenRenderingEnabled()`: Check if off-screen rendering is enabled
-- `setRenderTargetSize(int, int)`: Set the size of the render target texture
-- `getRenderTargetSize(int&, int&)`: Get the render target size
+- `isOffscreenRenderingEnabled()`: Always returns true (off-screen rendering is always enabled)
+- `setSize(int, int)`: Set the render target size
+- `getSize(int&, int&)`: Get the current render target size
+- `getRenderTargetSize(int&, int&)`: Legacy method (same as getSize)
+
+**Constructors:**
+- `Frame3D()`: Default constructor with 800x600 render target
+- `Frame3D(int width, int height)`: Constructor with custom render target size
 
 ### MetalRenderer Changes
 
@@ -67,17 +70,21 @@ renderFrame3D(frame, viewProjMatrix)
 ```python
 import cyber_ui_core as ui
 
-# Create Frame3D
+# Create Frame3D with default size (800x600)
 frame3d = ui.Frame3D()
 frame3d.set_name("MainFrame3D")
 frame3d.set_position(0.0, 0.0, 0.0)
 
-# Enable off-screen rendering
-frame3d.set_offscreen_rendering_enabled(True)
-frame3d.set_render_target_size(800, 600)  # Match your content size
+# Or create with custom size
+frame3d = ui.Frame3D(1024, 768)
+
+# Set size after creation
+frame3d.set_size(800, 600)
+
+# Off-screen rendering is always enabled for Frame3D
 
 # Add children (Frame2D with clipping, etc.)
-clip_panel = ui.Frame2D()
+clip_panel = ui.Frame2D(400, 300)  # Frame2D also supports size in constructor
 clip_panel.set_clipping_enabled(True)
 frame3d.add_child(clip_panel)
 
@@ -98,18 +105,21 @@ frame3d.set_rotation(pitch, yaw, roll)
 - Texture size should match content resolution
 
 **Recommendations:**
-- Only enable off-screen rendering when 3D rotation is needed
-- Set render target size to match your content dimensions
-- Consider using lower resolution for performance if acceptable
+- Off-screen rendering is always enabled for Frame3D (no configuration needed)
+- Set render target size to match your content dimensions or window size
+- Use constructor with size parameters for convenience: `Frame3D(800, 600)`
+- The renderer manages texture creation and caching automatically
 
 ## Example: Clipping Demo
 
 The `samples/basic/clipping_demo.py` demonstrates off-screen rendering:
 
 ```python
-# Enable off-screen rendering
-frame3d.set_offscreen_rendering_enabled(True)
-frame3d.set_render_target_size(800, 700)
+# Create Frame3D with render target size
+frame3d = ui.Frame3D()
+frame3d.set_size(800, 700)  # Match window size
+
+# Off-screen rendering is always enabled for Frame3D
 
 # Animate with 3D rotation
 frame3d.set_rotation(
@@ -144,10 +154,25 @@ The demo shows:
 
 Render target textures are cached per Frame3D instance to avoid recreation overhead. The cache is managed by MetalRenderer and cleaned up on shutdown.
 
+## Render Target Sizing
+
+The render target size is configured via constructor or `set_size()` method:
+
+1. **Default Size**: Frame3D defaults to 800x600 if no size is specified
+2. **Constructor**: Create with custom size: `Frame3D(1024, 768)`
+3. **Set Method**: Change size after creation: `frame3d.set_size(800, 600)`
+4. **Consistency**: Both Frame2D and Frame3D use the same sizing approach
+
+**Best Practices:**
+- Set render target size to match your window dimensions for optimal quality
+- Use the same size as your viewport to avoid scaling artifacts
+- Larger sizes provide better quality but use more memory
+
 ## Future Enhancements
 
 Potential improvements:
-- Automatic render target size calculation based on content bounds
+- Automatic size calculation based on content bounds
 - Dynamic resolution scaling based on distance from camera
 - Multi-sample anti-aliasing (MSAA) support for render targets
 - Depth buffer support for complex 3D hierarchies
+- Automatic window resize handling

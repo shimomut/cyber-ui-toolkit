@@ -472,14 +472,15 @@ void MetalRenderer::renderObject2D(Object2D* object, const float* mvpMatrix) {
         
         // Create offset matrix to move origin from center to top-left
         // Frame2D children use top-left origin coordinate system
+        // In 3D space Y+ is up, but 2D UI expects Y+ down, so we flip Y-axis
         float halfWidth = width * 0.5f;
         float halfHeight = height * 0.5f;
         
         float offsetMatrix[16] = {
             1, 0, 0, 0,
-            0, 1, 0, 0,
+            0, -1, 0, 0,  // Flip Y-axis: Y+ down for 2D UI
             0, 0, 1, 0,
-            -halfWidth, -halfHeight, 0, 1  // Offset to top-left
+            -halfWidth, halfHeight, 0, 1  // Move to top-left (with flipped Y)
         };
         
         // Combine with Frame2D's MVP

@@ -93,8 +93,8 @@ def main():
     frame3d = ui.Frame3D()
     frame3d.set_name("MainFrame3D")
     frame3d.set_position(0.0, 0.0, 0.0)
-    frame3d.set_offscreen_rendering_enabled(True)
-    frame3d.set_render_target_size(800, 700)  # Match window size
+    frame3d.set_size(800, 700)  # Set render target size
+    # Off-screen rendering is always enabled for Frame3D
     scene.add_frame3d(frame3d)
     
     # Load fonts with larger sizes for visibility

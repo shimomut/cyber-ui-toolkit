@@ -965,11 +965,15 @@ void MetalRenderer::pushScissorRect(float x, float y, float width, float height,
             maxY = std::max(maxY, screenCorners[i][1]);
         }
         
+        // Get drawable size for clamping
+        MTKView* view = (__bridge MTKView*)metalView_;
+        CGSize drawableSize = [view drawableSize];
+        
         // Convert to integer pixel coordinates
         int scissorX = static_cast<int>(std::max(0.0f, minX));
         int scissorY = static_cast<int>(std::max(0.0f, minY));
-        int scissorWidth = static_cast<int>(std::min(static_cast<float>(windowWidth_), maxX) - scissorX);
-        int scissorHeight = static_cast<int>(std::min(static_cast<float>(windowHeight_), maxY) - scissorY);
+        int scissorWidth = static_cast<int>(std::min(static_cast<float>(drawableSize.width), maxX) - scissorX);
+        int scissorHeight = static_cast<int>(std::min(static_cast<float>(drawableSize.height), maxY) - scissorY);
         
         // Clamp to valid ranges
         scissorWidth = std::max(0, scissorWidth);

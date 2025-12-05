@@ -29,7 +29,7 @@ def test_basic_capture():
     scene.set_camera(camera)
     
     # Create a 3D frame with some shapes
-    frame = ui.Frame3D()
+    frame = ui.Frame3D(800, 600)
     frame.set_position(0, 0, 0)
     
     # Add colored rectangles
@@ -83,7 +83,7 @@ def test_capture_with_texture():
     camera.set_position(0, 0, 5)
     scene.set_camera(camera)
     
-    frame = ui.Frame3D()
+    frame = ui.Frame3D(800, 600)
     
     # Load and display an image
     image = ui.Image()
@@ -137,7 +137,7 @@ def test_capture_raw_data():
     camera.set_position(0, 0, 5)
     scene.set_camera(camera)
     
-    frame = ui.Frame3D()
+    frame = ui.Frame3D(800, 600)
     
     # Create a simple red square
     rect = ui.Rectangle(200, 200)
@@ -205,7 +205,7 @@ def test_animated_capture():
     camera.set_position(0, 0, 5)
     scene.set_camera(camera)
     
-    frame = ui.Frame3D()
+    frame = ui.Frame3D(800, 600)
     
     # Create rotating rectangle
     rect = ui.Rectangle(200, 200)

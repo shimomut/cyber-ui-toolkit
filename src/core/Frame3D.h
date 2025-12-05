@@ -11,7 +11,6 @@ namespace CyberUI {
 // Supports off-screen rendering for proper clipping with 3D transforms
 class Frame3D {
 public:
-    Frame3D();
     Frame3D(int width, int height);
     virtual ~Frame3D() = default;
 

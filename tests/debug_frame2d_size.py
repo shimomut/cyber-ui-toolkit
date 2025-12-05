@@ -27,14 +27,14 @@ def main():
     camera.set_perspective(1.0472, 1600.0/1400.0, 0.1, 2000.0)
     
     # Create Frame3D
-    frame3d = ui.Frame3D()
+    frame3d = ui.Frame3D(800, 600)
     frame3d.set_position(0, 0, 0)
     scene.add_frame3d(frame3d)
     
     # Create Frame2D with specific size
-    clip_panel = ui.Frame2D()
+    clip_panel = ui.Frame2D(500, 600)
     clip_panel.set_position(150, 50)  # Center at (150, 50)
-    clip_panel.set_size(500, 600)     # Size 500x600
+    clip_panel     # Size 500x600
     clip_panel.set_clipping_enabled(True)
     
     # Fill entire Frame2D with bright red background

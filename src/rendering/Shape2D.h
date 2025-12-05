@@ -32,7 +32,7 @@ protected:
 // Rectangle shape
 class Rectangle : public Shape2D {
 public:
-    Rectangle(float width = 100.0f, float height = 100.0f);
+    Rectangle(float width, float height);
     virtual ~Rectangle() = default;
 
     void setSize(float width, float height);

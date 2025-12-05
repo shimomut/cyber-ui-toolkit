@@ -98,7 +98,7 @@ def main():
     print("Building scene hierarchy with multiple Frame3D containers...")
     
     # Frame3D #1 - Left section (positioned left and slightly rotated)
-    frame3d_left = ui.Frame3D()
+    frame3d_left = ui.Frame3D(800, 600)
     frame3d_left.set_name("Frame3D_Left")
     frame3d_left.set_position(-350.0, 0.0, -100.0)
     frame3d_left.set_rotation(0.0, 0.2, 0.0)  # Rotated to face camera
@@ -106,7 +106,7 @@ def main():
     print("✓ Created Frame3D: Frame3D_Left (pos: -350, 0, -100, rot: 0, 0.2, 0)")
     
     # Frame3D #2 - Center section (positioned at center, closer to camera)
-    frame3d_center = ui.Frame3D()
+    frame3d_center = ui.Frame3D(800, 600)
     frame3d_center.set_name("Frame3D_Center")
     frame3d_center.set_position(0.0, 0.0, 50.0)
     frame3d_center.set_rotation(0.0, 0.0, 0.0)  # Facing camera directly
@@ -114,7 +114,7 @@ def main():
     print("✓ Created Frame3D: Frame3D_Center (pos: 0, 0, 50, rot: 0, 0, 0)")
     
     # Frame3D #3 - Right section (positioned right and rotated opposite)
-    frame3d_right = ui.Frame3D()
+    frame3d_right = ui.Frame3D(800, 600)
     frame3d_right.set_name("Frame3D_Right")
     frame3d_right.set_position(350.0, 0.0, -100.0)
     frame3d_right.set_rotation(0.0, -0.2, 0.0)  # Rotated to face camera
@@ -127,10 +127,9 @@ def main():
     scene.add_frame3d(frame3d_right)
     
     # ===== Frame3D Left - Vertical Panel =====
-    left_panel = ui.Frame2D()
+    left_panel = ui.Frame2D(250.0, 650.0)
     left_panel.set_name("LeftPanel")
     left_panel.set_position(50.0, 50.0)
-    left_panel.set_size(250.0, 650.0)
     left_panel.set_clipping_enabled(True)
     print("✓ Created Frame2D: LeftPanel (with clipping)")
     
@@ -151,6 +150,7 @@ def main():
     left_panel.add_child(title_rect)
     
     # Content rectangles in left panel
+    content_rect_with_checker = None
     for i in range(6):
         content_rect = ui.Rectangle(210.0, 80.0)
         content_rect.set_name(f"ContentRect{i+1}")
@@ -164,6 +164,7 @@ def main():
         
         if checker_img and i == 2:
             content_rect.set_image(checker_img)
+            content_rect_with_checker = content_rect
         
         left_panel.add_child(content_rect)
     
@@ -171,10 +172,9 @@ def main():
     print("  └─ Added 7 rectangles to LeftPanel")
     
     # ===== Frame3D Center - Nested Grid Panel =====
-    center_panel = ui.Frame2D()
+    center_panel = ui.Frame2D(300.0, 550.0)
     center_panel.set_name("CenterPanel")
     center_panel.set_position(350.0, 100.0)
-    center_panel.set_size(300.0, 550.0)
     center_panel.set_clipping_enabled(False)
     print("✓ Created Frame2D: CenterPanel (no clipping)")
     
@@ -195,10 +195,9 @@ def main():
     center_panel.add_child(center_header)
     
     # Nested Frame2D inside center panel (top-left origin positioning)
-    nested_frame = ui.Frame2D()
+    nested_frame = ui.Frame2D(280.0, 440.0)
     nested_frame.set_name("NestedFrame")
     nested_frame.set_position(150.0, 310.0)  # Centered horizontally, below header
-    nested_frame.set_size(280.0, 440.0)
     nested_frame.set_clipping_enabled(True)
     print("  ✓ Created nested Frame2D: NestedFrame (with clipping)")
     
@@ -210,6 +209,7 @@ def main():
     nested_frame.add_child(nested_bg)
     
     # Grid of rectangles in nested frame (4x4) - using top-left origin
+    grid_rects = []
     for row in range(4):
         for col in range(4):
             grid_rect = ui.Rectangle(60.0, 60.0)
@@ -223,11 +223,15 @@ def main():
             grid_rect.set_color(r, g, b, 1.0)
             
             # Add textures to some rectangles
+            texture_type = None
             if (row + col) % 3 == 0 and icon_img:
                 grid_rect.set_image(icon_img)
+                texture_type = 'icon'
             elif (row + col) % 3 == 1 and checker_img:
                 grid_rect.set_image(checker_img)
+                texture_type = 'checker'
             
+            grid_rects.append((grid_rect, texture_type, row, col))
             nested_frame.add_child(grid_rect)
     
     center_panel.add_child(nested_frame)
@@ -235,10 +239,9 @@ def main():
     print("    └─ Added 4x4 grid (16 rectangles) to NestedFrame")
     
     # ===== Frame3D Right - Carousel Panel =====
-    right_panel = ui.Frame2D()
+    right_panel = ui.Frame2D(280.0, 450.0)
     right_panel.set_name("RightPanel")
     right_panel.set_position(700.0, 150.0)
-    right_panel.set_size(280.0, 450.0)
     right_panel.set_clipping_enabled(True)
     print("✓ Created Frame2D: RightPanel (with clipping)")
     
@@ -293,11 +296,28 @@ def main():
     print()
     
     # Render loop with 3D animation
+    # Debug toggle states
+    texture_enabled = True
+    clipping_enabled = True
+    animation_enabled = True
+    
+    # Toggle intervals (in frames) - press keys during these windows
+    toggle_check_interval = 60  # Check every 60 frames (1 second at 60fps)
+    last_toggle_frame = 0
+    
     print("Starting render loop with 3D animation...")
     print("Watch the panels rotate and move in 3D space!")
     if args.capture:
         print("Capturing frames automatically every 2 seconds...")
-    print("Press ESC or close window to exit\n")
+    print("\n" + "="*60)
+    print("DEBUG CONTROLS (Terminal Input):")
+    print("="*60)
+    print("  Type 't' + ENTER to toggle Texture Mapping (currently: ON)")
+    print("  Type 'c' + ENTER to toggle Clipping (currently: ON)")
+    print("  Type 'a' + ENTER to toggle Animation (currently: ON)")
+    print("  Type 'q' + ENTER or close window to exit")
+    print("="*60)
+    print("\nNote: Type commands in this terminal while the window is running\n")
     
     # Setup capture if enabled
     output_dir = None
@@ -310,29 +330,130 @@ def main():
     
     frame_count = 0
     
+    # Function to apply texture state
+    def apply_texture_state(enabled):
+        # Toggle textures on title and header
+        if gradient_img:
+            if enabled:
+                title_rect.set_image(gradient_img)
+                center_header.set_image(gradient_img)
+            else:
+                title_rect.set_image(None)
+                center_header.set_image(None)
+        
+        # Toggle checker texture on ContentRect3
+        if content_rect_with_checker and checker_img:
+            if enabled:
+                content_rect_with_checker.set_image(checker_img)
+            else:
+                content_rect_with_checker.set_image(None)
+        
+        # Toggle grid textures
+        for grid_rect, texture_type, row, col in grid_rects:
+            if texture_type == 'icon' and icon_img:
+                if enabled:
+                    grid_rect.set_image(icon_img)
+                else:
+                    grid_rect.set_image(None)
+            elif texture_type == 'checker' and checker_img:
+                if enabled:
+                    grid_rect.set_image(checker_img)
+                else:
+                    grid_rect.set_image(None)
+        
+        # Toggle carousel textures
+        for i, item in enumerate(carousel_items):
+            if i % 3 == 0 and gradient_img:
+                if enabled:
+                    item.set_image(gradient_img)
+                else:
+                    item.set_image(None)
+            elif i % 3 == 1 and checker_img:
+                if enabled:
+                    item.set_image(checker_img)
+                else:
+                    item.set_image(None)
+            elif i % 3 == 2 and icon_img:
+                if enabled:
+                    item.set_image(icon_img)
+                else:
+                    item.set_image(None)
+    
+    # Non-blocking input check
+    import select
+    import sys
+    
+    def check_input():
+        """Check for terminal input without blocking"""
+        if select.select([sys.stdin], [], [], 0.0)[0]:
+            return sys.stdin.readline().strip().lower()
+        return None
+    
     while not renderer.should_close():
         renderer.poll_events()
         
+        # Check for terminal input
+        user_input = check_input()
+        if user_input:
+            if user_input == 't':
+                texture_enabled = not texture_enabled
+                status = "ON" if texture_enabled else "OFF"
+                print(f"\n[T] Texture Mapping: {status}")
+                apply_texture_state(texture_enabled)
+            
+            elif user_input == 'c':
+                clipping_enabled = not clipping_enabled
+                status = "ON" if clipping_enabled else "OFF"
+                print(f"\n[C] Clipping: {status}")
+                left_panel.set_clipping_enabled(clipping_enabled)
+                nested_frame.set_clipping_enabled(clipping_enabled)
+                right_panel.set_clipping_enabled(clipping_enabled)
+            
+            elif user_input == 'a':
+                animation_enabled = not animation_enabled
+                status = "ON" if animation_enabled else "OFF"
+                print(f"\n[A] Animation: {status}")
+            
+            elif user_input == 'q':
+                print("\nExiting...")
+                break
+        
         time = frame_count * 0.001
         
-        # Animate Frame3D rotations
-        frame3d_left.set_rotation(0.0, 0.2 + math.sin(time) * 0.15, 0.0)
-        frame3d_center.set_rotation(math.sin(time * 0.5) * 0.1, 0.0, 0.0)
-        frame3d_right.set_rotation(0.0, -0.2 + math.sin(time) * 0.15, 0.0)
-        
-        # Animate Frame3D positions (gentle floating)
-        frame3d_left.set_position(-350.0, math.sin(time * 0.8) * 30.0, -100.0 + math.cos(time * 0.6) * 20.0)
-        frame3d_center.set_position(0.0, math.sin(time * 0.6 + 1.0) * 25.0, 50.0 + math.sin(time * 0.4) * 30.0)
-        frame3d_right.set_position(350.0, math.sin(time * 0.7 + 2.0) * 30.0, -100.0 + math.cos(time * 0.5) * 20.0)
-        
-        # Animate nested frame position (vertical oscillation)
-        offset_y = math.sin(time * 2.0) * 30.0
-        nested_frame.set_position(150.0, 310.0 + offset_y)
-        
-        # Animate carousel items (staggered vertical movement)
-        for i, item in enumerate(carousel_items):
-            item_offset = math.sin(time * 1.5 + i * 0.5) * 15.0
-            item.set_position(140.0, 100.0 + i * 80.0 + item_offset)
+        # Apply animations only if enabled
+        if animation_enabled:
+            # Animate Frame3D rotations
+            frame3d_left.set_rotation(0.0, 0.2 + math.sin(time) * 0.15, 0.0)
+            frame3d_center.set_rotation(math.sin(time * 0.5) * 0.1, 0.0, 0.0)
+            frame3d_right.set_rotation(0.0, -0.2 + math.sin(time) * 0.15, 0.0)
+            
+            # Animate Frame3D positions (gentle floating)
+            frame3d_left.set_position(-350.0, math.sin(time * 0.8) * 30.0, -100.0 + math.cos(time * 0.6) * 20.0)
+            frame3d_center.set_position(0.0, math.sin(time * 0.6 + 1.0) * 25.0, 50.0 + math.sin(time * 0.4) * 30.0)
+            frame3d_right.set_position(350.0, math.sin(time * 0.7 + 2.0) * 30.0, -100.0 + math.cos(time * 0.5) * 20.0)
+            
+            # Animate nested frame position (vertical oscillation)
+            offset_y = math.sin(time * 2.0) * 30.0
+            nested_frame.set_position(150.0, 310.0 + offset_y)
+            
+            # Animate carousel items (staggered vertical movement)
+            for i, item in enumerate(carousel_items):
+                item_offset = math.sin(time * 1.5 + i * 0.5) * 15.0
+                item.set_position(140.0, 100.0 + i * 80.0 + item_offset)
+        else:
+            # Reset to static positions when animation is disabled
+            frame3d_left.set_rotation(0.0, 0.2, 0.0)
+            frame3d_center.set_rotation(0.0, 0.0, 0.0)
+            frame3d_right.set_rotation(0.0, -0.2, 0.0)
+            
+            frame3d_left.set_position(-350.0, 0.0, -100.0)
+            frame3d_center.set_position(0.0, 0.0, 50.0)
+            frame3d_right.set_position(350.0, 0.0, -100.0)
+            
+            nested_frame.set_position(150.0, 310.0)
+            
+            for i, item in enumerate(carousel_items):
+                item.set_position(140.0, 100.0 + i * 80.0)
         
         if renderer.begin_frame():
             # Render entire scene with automatic tree traversal

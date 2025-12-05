@@ -3,10 +3,6 @@
 
 namespace CyberUI {
 
-Frame2D::Frame2D() 
-    : width_(100.0f), height_(100.0f), clipping_enabled_(true) {
-}
-
 Frame2D::Frame2D(float width, float height) 
     : width_(width), height_(height), clipping_enabled_(true) {
 }

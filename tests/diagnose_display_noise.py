@@ -23,7 +23,7 @@ def create_test_pattern(renderer, scene):
     camera.set_position(0, 0, 5)
     scene.set_camera(camera)
     
-    frame = ui.Frame3D()
+    frame = ui.Frame3D(800, 600)
     frame.set_position(0, 0, 0)
     
     # Create a gradient pattern with solid colors

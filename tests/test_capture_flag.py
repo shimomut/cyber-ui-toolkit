@@ -32,7 +32,7 @@ def main():
     camera.set_position(0, 0, 5)
     scene.set_camera(camera)
     
-    frame = ui.Frame3D()
+    frame = ui.Frame3D(800, 600)
     rect = ui.Rectangle(200, 200)
     rect.set_color(1.0, 0.0, 0.0, 1.0)
     frame.add_child(rect)

@@ -3,15 +3,6 @@
 
 namespace CyberUI {
 
-Frame3D::Frame3D() 
-    : visible_(true), name_(""),
-      renderTargetWidth_(800), renderTargetHeight_(600),
-      renderTargetTexture_(nullptr) {
-    position_[0] = position_[1] = position_[2] = 0.0f;
-    rotation_[0] = rotation_[1] = rotation_[2] = 0.0f;
-    scale_[0] = scale_[1] = scale_[2] = 1.0f;
-}
-
 Frame3D::Frame3D(int width, int height) 
     : visible_(true), name_(""),
       renderTargetWidth_(width), renderTargetHeight_(height),

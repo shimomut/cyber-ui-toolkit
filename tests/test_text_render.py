@@ -31,14 +31,14 @@ def main():
         return 1
     
     # Create Frame3D
-    frame3d = ui.Frame3D()
+    frame3d = ui.Frame3D(800, 600)
     frame3d.set_position(0, 0, 0)
     scene.add_frame3d(frame3d)
     
     # Create Frame2D
-    frame2d = ui.Frame2D()
+    frame2d = ui.Frame2D(600, 400)
     frame2d.set_position(0, 0)
-    frame2d.set_size(600, 400)
+    frame2d
     
     # Add text
     text = ui.Text("HELLO WORLD")

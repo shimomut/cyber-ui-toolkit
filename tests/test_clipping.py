@@ -141,16 +141,16 @@ def main():
     gradient_img = load_image_with_pillow(os.path.join(data_dir, "gradient.png"))
     
     # Create Frame3D
-    frame3d = ui.Frame3D()
+    frame3d = ui.Frame3D(800, 600)
     frame3d.set_name("TestFrame3D")
     frame3d.set_position(0.0, 0.0, 0.0)
     scene.add_frame3d(frame3d)
     
     # Create Frame2D with clipping
-    clip_panel = ui.Frame2D()
+    clip_panel = ui.Frame2D(500.0, 600.0)
     clip_panel.set_name("ClipPanel")
     clip_panel.set_position(150.0, 50.0)  # Position in world space
-    clip_panel.set_size(500.0, 600.0)     # Clipping region size
+    clip_panel     # Clipping region size
     clip_panel.set_clipping_enabled(True)
     
     # Background

@@ -21,15 +21,15 @@ def main():
     camera.set_position(0.0, 0.0, 800.0)
     camera.set_perspective(1.0472, 800.0/700.0, 0.1, 2000.0)
     
-    frame3d = ui.Frame3D()
+    frame3d = ui.Frame3D(800, 600)
     frame3d.set_position(0.0, 0.0, 0.0)
     frame3d.set_size(800, 700)
     scene.add_frame3d(frame3d)
     
     # Simple test: Frame2D at (0, 0) with a single rectangle
-    clip_panel = ui.Frame2D()
+    clip_panel = ui.Frame2D(200.0, 200.0)
     clip_panel.set_position(0.0, 0.0)  # Center of window
-    clip_panel.set_size(200.0, 200.0)  # Small size
+    clip_panel  # Small size
     clip_panel.set_clipping_enabled(False)
     
     # Red rectangle filling the Frame2D

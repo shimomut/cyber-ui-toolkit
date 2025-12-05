@@ -26,15 +26,15 @@ def test_square(name, use_frame2d=False):
     camera.set_position(0, 0, 800)
     camera.set_perspective(1.0472, 1600.0/1400.0, 0.1, 2000.0)
     
-    frame3d = ui.Frame3D()
+    frame3d = ui.Frame3D(800, 600)
     frame3d.set_position(0, 0, 0)
     scene.add_frame3d(frame3d)
     
     if use_frame2d:
         # Test with Frame2D - use EXACT same parameters as debug_frame2d_size.py
-        frame2d = ui.Frame2D()
+        frame2d = ui.Frame2D(500, 600)
         frame2d.set_position(150, 50)  # Same as original test
-        frame2d.set_size(500, 600)      # Same as original test
+        frame2d      # Same as original test
         
         # Fill entire Frame2D with rectangle
         rect = ui.Rectangle(500, 600)

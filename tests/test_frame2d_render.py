@@ -23,13 +23,13 @@ def main():
     camera.set_position(0, 0, 5)
     
     # Create Frame3D
-    frame3d = ui.Frame3D()
+    frame3d = ui.Frame3D(800, 600)
     frame3d.set_position(0, 0, 0)
     
     # Create Frame2D with a simple white rectangle
-    frame2d = ui.Frame2D()
+    frame2d = ui.Frame2D(400, 400)
     frame2d.set_position(0, 0)  # Center
-    frame2d.set_size(400, 400)
+    frame2d
     
     rect = ui.Rectangle(200, 200)
     rect.set_position(200, 200)  # Center in Frame2D

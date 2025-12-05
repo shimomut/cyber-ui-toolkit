@@ -51,10 +51,10 @@ def main():
     camera.setPosition(0, 0, 500)
     scene.setCamera(camera)
     
-    frame3d = ui.Frame3D()
+    frame3d = ui.Frame3D(800, 600)
     scene.addFrame(frame3d)
     
-    frame2d = ui.Frame2D()
+    frame2d = ui.Frame2D(100.0, 100.0)
     frame3d.addChild(frame2d)
     
     # Create textured rectangles

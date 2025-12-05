@@ -29,7 +29,7 @@ def main():
     scene.set_camera(camera)
     
     # Create a single white rectangle
-    frame = ui.Frame3D()
+    frame = ui.Frame3D(800, 600)
     frame.set_position(0, 0, 0)
     
     rect = ui.Rectangle(400, 400)

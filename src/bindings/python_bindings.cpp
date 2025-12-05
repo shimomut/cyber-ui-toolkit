@@ -88,7 +88,6 @@ PYBIND11_MODULE(cyber_ui_core, m) {
 
     // Frame3D - top-level 3D container
     py::class_<Frame3D, std::shared_ptr<Frame3D>>(m, "Frame3D")
-        .def(py::init<>())
         .def(py::init<int, int>())
         .def("add_child", &Frame3D::addChild)
         .def("remove_child", &Frame3D::removeChild)
@@ -147,7 +146,6 @@ PYBIND11_MODULE(cyber_ui_core, m) {
 
     // Frame2D - 2D container with clipping
     py::class_<Frame2D, Object2D, std::shared_ptr<Frame2D>>(m, "Frame2D")
-        .def(py::init<>())
         .def(py::init<float, float>())
         .def("set_size", &Frame2D::setSize)
         .def("get_size", [](const Frame2D& frame) {
@@ -189,8 +187,7 @@ PYBIND11_MODULE(cyber_ui_core, m) {
 
     // Rectangle class
     py::class_<Rectangle, Shape2D, std::shared_ptr<Rectangle>>(m, "Rectangle")
-        .def(py::init<float, float>(), 
-             py::arg("width") = 100.0f, py::arg("height") = 100.0f)
+        .def(py::init<float, float>())
         .def("set_size", &Rectangle::setSize)
         .def("get_size", [](const Rectangle& rect) {
             float w, h;

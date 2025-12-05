@@ -23,17 +23,17 @@ def main():
     camera.set_perspective(1.0472, 800.0/700.0, 0.1, 2000.0)
     
     # Create Frame3D
-    frame3d = ui.Frame3D()
+    frame3d = ui.Frame3D(800, 600)
     frame3d.set_name("MainFrame3D")
     frame3d.set_position(0.0, 0.0, 0.0)
     frame3d.set_size(800, 700)
     scene.add_frame3d(frame3d)
     
     # Create Frame2D at specific position
-    clip_panel = ui.Frame2D()
+    clip_panel = ui.Frame2D(500.0, 600.0)
     clip_panel.set_name("ClippingPanel")
     clip_panel.set_position(150.0, 50.0)  # This uses center-origin in Frame3D space
-    clip_panel.set_size(500.0, 600.0)
+    clip_panel
     clip_panel.set_clipping_enabled(True)
     
     # Background at (0, 0) - should be at Frame2D's top-left

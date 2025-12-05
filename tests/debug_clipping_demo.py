@@ -63,7 +63,7 @@ def main():
     print()
     
     # Create Frame3D container
-    frame3d = ui.Frame3D()
+    frame3d = ui.Frame3D(800, 600)
     frame3d.set_name("MainFrame3D")
     frame3d.set_position(0.0, 0.0, 0.0)
     scene.add_frame3d(frame3d)
@@ -80,10 +80,10 @@ def main():
     
     # Create Frame2D with clipping
     print("Creating clipping panel...")
-    clip_panel = ui.Frame2D()
+    clip_panel = ui.Frame2D(500.0, 600.0)
     clip_panel.set_name("ClippingPanel")
     clip_panel.set_position(150.0, 50.0)
-    clip_panel.set_size(500.0, 600.0)
+    clip_panel
     clip_panel.set_clipping_enabled(True)
     
     print(f"  Position: (150, 50)")

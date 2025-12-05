@@ -28,15 +28,15 @@ def main():
     camera.set_perspective(1.0472, 800.0/600.0, 0.1, 2000.0)
     
     # Create Frame3D - NO POSITION, NO ROTATION
-    frame3d = ui.Frame3D()
+    frame3d = ui.Frame3D(800, 600)
     frame3d.set_position(0.0, 0.0, 0.0)
     frame3d.set_size(800, 600)
     scene.add_frame3d(frame3d)
     
     # Create Frame2D - CENTERED, NO OFFSET
-    clip_panel = ui.Frame2D()
+    clip_panel = ui.Frame2D(400.0, 400.0)
     clip_panel.set_position(0.0, 0.0)  # At origin
-    clip_panel.set_size(400.0, 400.0)  # Smaller, centered
+    clip_panel  # Smaller, centered
     clip_panel.set_clipping_enabled(True)
     
     # Background - should fill entire Frame2D

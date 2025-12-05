@@ -7,7 +7,6 @@ namespace CyberUI {
 // 2D frame that can contain other 2D objects with clipping capability
 class Frame2D : public Object2D {
 public:
-    Frame2D();
     Frame2D(float width, float height);
     virtual ~Frame2D() = default;
 

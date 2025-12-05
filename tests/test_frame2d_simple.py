@@ -30,14 +30,14 @@ def main():
     print("Camera: position (0, 0, 800), perspective FOV=60°, aspect=1.333")
     
     # Create Frame3D at origin
-    frame3d = ui.Frame3D()
+    frame3d = ui.Frame3D(800, 600)
     frame3d.set_position(0, 0, 0)
     scene.add_frame3d(frame3d)
     
     # Create Frame2D
-    frame2d = ui.Frame2D()
+    frame2d = ui.Frame2D(400, 400)
     frame2d.set_position(0, 0)  # Center of screen
-    frame2d.set_size(400, 400)
+    frame2d
     
     # Add a bright red rectangle
     rect = ui.Rectangle(200, 200)

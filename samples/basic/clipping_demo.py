@@ -90,11 +90,9 @@ def main():
     script_dir = os.path.dirname(os.path.abspath(__file__))
     
     # Create Frame3D container with off-screen rendering enabled
-    frame3d = ui.Frame3D()
+    frame3d = ui.Frame3D(800, 600)
     frame3d.set_name("MainFrame3D")
     frame3d.set_position(0.0, 0.0, 0.0)
-    frame3d.set_size(800, 700)  # Set render target size
-    # Off-screen rendering is always enabled for Frame3D
     scene.add_frame3d(frame3d)
     
     # Load fonts with larger sizes for visibility
@@ -109,10 +107,9 @@ def main():
     
     # ===== SINGLE PANEL: Clipping Enabled =====
     print("Creating clipping panel...")
-    clip_panel = ui.Frame2D()
+    clip_panel = ui.Frame2D(500.0, 600.0)
     clip_panel.set_name("ClippingPanel")
     clip_panel.set_position(150.0, 50.0)
-    clip_panel.set_size(500.0, 600.0)
     clip_panel.set_clipping_enabled(True)
     
     # Dark background for contrast - fills entire Frame2D from top-left

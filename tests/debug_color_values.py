@@ -15,7 +15,7 @@ import time
 def test_color(renderer, scene, color_name, r, g, b, a, position):
     """Test a specific color and return the captured result."""
     # Create new frame for this test
-    frame = ui.Frame3D()
+    frame = ui.Frame3D(800, 600)
     frame.set_position(0, 0, 0)
     
     # Create rectangle with test color

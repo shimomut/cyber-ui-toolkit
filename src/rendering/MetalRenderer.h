@@ -27,6 +27,10 @@ public:
     // Capture functionality
     bool captureFrame(std::vector<uint8_t>& pixelData, int& width, int& height) override;
     bool saveCapture(const char* filename) override;
+    
+    // FPS measurement
+    double getFPS() const override;
+    int getFrameCount() const override;
 
 private:
     void setupShaders();
@@ -54,10 +58,13 @@ private:
     void* device_;
     void* commandQueue_;
     void* pipelineState_;
+    void* depthStencilStateEnabled_;   // Depth test enabled for 3D rendering
+    void* depthStencilStateDisabled_;  // Depth test disabled for 2D off-screen rendering
     void* window_;
     void* metalView_;
     void* commandBuffer_;
     void* renderEncoder_;
+    void* framePacingSemaphore_;  // Semaphore for frame pacing (V-Sync)
     
     bool initialized_;
     bool shouldClose_;
@@ -81,6 +88,14 @@ private:
     // Current render target dimensions (for scissor rect calculation)
     int currentRenderTargetWidth_;
     int currentRenderTargetHeight_;
+    
+    // FPS tracking
+    int frameCount_;           // Frames since last FPS update (for FPS calculation)
+    int totalFrameCount_;      // Total frames rendered (never reset)
+    double startTime_;
+    double lastFPSUpdateTime_;
+    double currentFPS_;
+    double lastFrameTime_;     // Time of last frame for FPS limiting
 };
 
 } // namespace CyberUI

@@ -10,6 +10,7 @@
 #import <MetalKit/MetalKit.h>
 #import <Cocoa/Cocoa.h>
 #import <cmath>
+#import <iostream>
 
 namespace CyberUI {
 
@@ -22,10 +23,13 @@ struct Vertex {
 
 MetalRenderer::MetalRenderer() 
     : device_(nullptr), commandQueue_(nullptr), pipelineState_(nullptr),
+      depthStencilStateEnabled_(nullptr), depthStencilStateDisabled_(nullptr),
       window_(nullptr), metalView_(nullptr), commandBuffer_(nullptr), renderEncoder_(nullptr),
+      framePacingSemaphore_(nullptr),
       initialized_(false), shouldClose_(false), windowWidth_(800), windowHeight_(600),
       newTexturesCreatedThisFrame_(false),
-      currentRenderTargetWidth_(0), currentRenderTargetHeight_(0) {
+      currentRenderTargetWidth_(0), currentRenderTargetHeight_(0),
+      frameCount_(0), totalFrameCount_(0), startTime_(0.0), lastFPSUpdateTime_(0.0), currentFPS_(0.0), lastFrameTime_(0.0) {
 }
 
 MetalRenderer::~MetalRenderer() {
@@ -74,6 +78,15 @@ bool MetalRenderer::initialize(int width, int height, const char* title) {
         [metalView setDepthStencilPixelFormat:MTLPixelFormatDepth32Float];
         [metalView setClearColor:MTLClearColorMake(0.1, 0.1, 0.1, 1.0)];
         [metalView setClearDepth:1.0];
+        
+        // Enable V-Sync to limit FPS to display refresh rate (typically 60 FPS)
+        [metalView setPreferredFramesPerSecond:60];
+        
+        // Enable display sync on the underlying CAMetalLayer
+        // This is critical for V-Sync to work properly
+        CAMetalLayer* metalLayer = (CAMetalLayer*)metalView.layer;
+        metalLayer.displaySyncEnabled = YES;
+        
         metalView_ = (__bridge_retained void*)metalView;
         
         [window setContentView:metalView];
@@ -81,6 +94,18 @@ bool MetalRenderer::initialize(int width, int height, const char* title) {
         
         // Setup shaders
         setupShaders();
+        
+        // Create semaphore for frame pacing (limit to 1 frame in flight for V-Sync)
+        dispatch_semaphore_t semaphore = dispatch_semaphore_create(1);
+        framePacingSemaphore_ = (__bridge_retained void*)semaphore;
+        
+        // Initialize FPS tracking
+        startTime_ = CACurrentMediaTime();
+        lastFPSUpdateTime_ = startTime_;
+        lastFrameTime_ = startTime_;
+        frameCount_ = 0;
+        totalFrameCount_ = 0;
+        currentFPS_ = 0.0;
         
         initialized_ = true;
         return true;
@@ -186,11 +211,34 @@ void MetalRenderer::setupShaders() {
             NSLog(@"Failed to create pipeline state: %@", error);
         }
         pipelineState_ = (__bridge_retained void*)pipelineState;
+        
+        // Create depth stencil states
+        MTLDepthStencilDescriptor* depthDescEnabled = [[MTLDepthStencilDescriptor alloc] init];
+        depthDescEnabled.depthCompareFunction = MTLCompareFunctionLessEqual;
+        depthDescEnabled.depthWriteEnabled = YES;
+        id<MTLDepthStencilState> depthStateEnabled = [device newDepthStencilStateWithDescriptor:depthDescEnabled];
+        depthStencilStateEnabled_ = (__bridge_retained void*)depthStateEnabled;
+        
+        MTLDepthStencilDescriptor* depthDescDisabled = [[MTLDepthStencilDescriptor alloc] init];
+        depthDescDisabled.depthCompareFunction = MTLCompareFunctionAlways;
+        depthDescDisabled.depthWriteEnabled = NO;
+        id<MTLDepthStencilState> depthStateDisabled = [device newDepthStencilStateWithDescriptor:depthDescDisabled];
+        depthStencilStateDisabled_ = (__bridge_retained void*)depthStateDisabled;
     }
 }
 
 void MetalRenderer::shutdown() {
     if (initialized_) {
+        // Print final FPS statistics
+        double totalTime = CACurrentMediaTime() - startTime_;
+        double avgFPS = totalTime > 0 ? totalFrameCount_ / totalTime : 0.0;
+        
+        std::cout << "\n=== Metal Renderer Statistics ===" << std::endl;
+        std::cout << "Total frames: " << totalFrameCount_ << std::endl;
+        std::cout << "Total time: " << totalTime << " seconds" << std::endl;
+        std::cout << "Average FPS: " << avgFPS << std::endl;
+        std::cout << "==================================\n" << std::endl;
+        
         @autoreleasepool {
             // Clean up texture cache
             for (auto& pair : textureCache_) {
@@ -207,6 +255,14 @@ void MetalRenderer::shutdown() {
             }
             textTextureCache_.clear();
             
+            if (depthStencilStateEnabled_) {
+                (void)(__bridge_transfer id<MTLDepthStencilState>)depthStencilStateEnabled_;
+                depthStencilStateEnabled_ = nullptr;
+            }
+            if (depthStencilStateDisabled_) {
+                (void)(__bridge_transfer id<MTLDepthStencilState>)depthStencilStateDisabled_;
+                depthStencilStateDisabled_ = nullptr;
+            }
             if (window_) {
                 NSWindow* window = (__bridge_transfer NSWindow*)window_;
                 [window close];
@@ -224,6 +280,10 @@ void MetalRenderer::shutdown() {
                 (void)(__bridge_transfer id<MTLCommandQueue>)commandQueue_;
                 commandQueue_ = nullptr;
             }
+            if (framePacingSemaphore_) {
+                (void)(__bridge_transfer dispatch_semaphore_t)framePacingSemaphore_;
+                framePacingSemaphore_ = nullptr;
+            }
             if (device_) {
                 (void)(__bridge_transfer id<MTLDevice>)device_;
                 device_ = nullptr;
@@ -235,6 +295,24 @@ void MetalRenderer::shutdown() {
 
 bool MetalRenderer::beginFrame() {
     if (!initialized_) return false;
+    
+    // Frame rate limiting: wait to maintain 60 FPS
+    const double targetFrameTime = 1.0 / 60.0;  // 16.67ms for 60 FPS
+    double currentTime = CACurrentMediaTime();
+    double elapsed = currentTime - lastFrameTime_;
+    
+    if (elapsed < targetFrameTime) {
+        // Sleep for the remaining time to hit 60 FPS
+        double sleepTime = targetFrameTime - elapsed;
+        usleep((useconds_t)(sleepTime * 1000000.0));  // usleep takes microseconds
+        lastFrameTime_ = CACurrentMediaTime();
+    } else {
+        lastFrameTime_ = currentTime;
+    }
+    
+    // Wait for previous frame to complete (frame pacing)
+    dispatch_semaphore_t semaphore = (__bridge dispatch_semaphore_t)framePacingSemaphore_;
+    dispatch_semaphore_wait(semaphore, DISPATCH_TIME_FOREVER);
     
     // Reset texture creation flag for this frame
     newTexturesCreatedThisFrame_ = false;
@@ -258,6 +336,10 @@ bool MetalRenderer::beginFrame() {
         
         id<MTLRenderPipelineState> pipelineState = (__bridge id<MTLRenderPipelineState>)pipelineState_;
         [renderEncoder setRenderPipelineState:pipelineState];
+        
+        // Enable depth testing for main 3D rendering
+        id<MTLDepthStencilState> depthStateEnabled = (__bridge id<MTLDepthStencilState>)depthStencilStateEnabled_;
+        [renderEncoder setDepthStencilState:depthStateEnabled];
         
         // Get actual drawable size (accounts for Retina scaling)
         CGSize drawableSize = [view drawableSize];
@@ -296,17 +378,32 @@ void MetalRenderer::endFrame() {
         
         MTKView* view = (__bridge MTKView*)metalView_;
         id<MTLCommandBuffer> commandBuffer = (__bridge_transfer id<MTLCommandBuffer>)commandBuffer_;
-        [commandBuffer presentDrawable:[view currentDrawable]];
+        id<CAMetalDrawable> drawable = [view currentDrawable];
+        
+        // Add completion handler to signal semaphore
+        dispatch_semaphore_t semaphore = (__bridge dispatch_semaphore_t)framePacingSemaphore_;
+        [commandBuffer addCompletedHandler:^(id<MTLCommandBuffer> buffer) {
+            dispatch_semaphore_signal(semaphore);
+        }];
+        
+        // Present the drawable
+        [commandBuffer presentDrawable:drawable];
         [commandBuffer commit];
         
-        // CRITICAL: Only wait for GPU if new textures were created this frame
-        // This prevents textures from being deallocated while GPU is still using them.
-        // Cached textures don't need synchronization since they persist across frames.
-        if (newTexturesCreatedThisFrame_) {
-            [commandBuffer waitUntilCompleted];
-        }
-        
         commandBuffer_ = nullptr;
+    }
+    
+    // Update FPS counter
+    frameCount_++;
+    totalFrameCount_++;
+    double currentTime = CACurrentMediaTime();
+    double elapsed = currentTime - lastFPSUpdateTime_;
+    
+    // Update FPS every 0.5 seconds
+    if (elapsed >= 0.5) {
+        currentFPS_ = frameCount_ / elapsed;
+        frameCount_ = 0;
+        lastFPSUpdateTime_ = currentTime;
     }
 }
 
@@ -851,6 +948,10 @@ void MetalRenderer::renderFrame3DToTexture(Frame3D* frame) {
         id<MTLRenderPipelineState> pipelineState = (__bridge id<MTLRenderPipelineState>)pipelineState_;
         [offscreenEncoder setRenderPipelineState:pipelineState];
         
+        // Disable depth testing for off-screen 2D rendering
+        id<MTLDepthStencilState> depthStateDisabled = (__bridge id<MTLDepthStencilState>)depthStencilStateDisabled_;
+        [offscreenEncoder setDepthStencilState:depthStateDisabled];
+        
         // Store current encoder, command buffer, and render target dimensions
         void* savedEncoder = renderEncoder_;
         void* savedCommandBuffer = commandBuffer_;
@@ -1247,6 +1348,14 @@ void MetalRenderer::transformPointToScreen(float x, float y, const float* mvpMat
     // Convert from NDC [-1, 1] to render target space [0, width/height]
     screenX = (clipX + 1.0f) * 0.5f * targetWidth;
     screenY = (1.0f - clipY) * 0.5f * targetHeight;  // Flip Y for screen coordinates
+}
+
+double MetalRenderer::getFPS() const {
+    return currentFPS_;
+}
+
+int MetalRenderer::getFrameCount() const {
+    return totalFrameCount_;
 }
 
 } // namespace CyberUI

@@ -68,7 +68,8 @@ OpenGLRenderer::OpenGLRenderer()
       initialized_(false), shouldClose_(false), windowWidth_(800), windowHeight_(600),
       newTexturesCreatedThisFrame_(false),
       currentRenderTargetWidth_(0), currentRenderTargetHeight_(0),
-      whiteTexture_(0) {
+      whiteTexture_(0),
+      frameCount_(0), totalFrameCount_(0), startTime_(0.0), lastFPSUpdateTime_(0.0), currentFPS_(0.0) {
 }
 
 OpenGLRenderer::~OpenGLRenderer() {
@@ -106,6 +107,9 @@ bool OpenGLRenderer::initialize(int width, int height, const char* title) {
     window_ = window;
     
     glfwMakeContextCurrent(window);
+    
+    // Enable V-Sync to limit FPS to display refresh rate (typically 60 FPS)
+    glfwSwapInterval(1);
     
 #ifndef __APPLE__
     // Initialize GLEW (not needed on macOS)
@@ -160,6 +164,13 @@ bool OpenGLRenderer::initialize(int width, int height, const char* title) {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glBindTexture(GL_TEXTURE_2D, 0);
     
+    // Initialize FPS tracking
+    startTime_ = glfwGetTime();
+    lastFPSUpdateTime_ = startTime_;
+    frameCount_ = 0;
+    totalFrameCount_ = 0;
+    currentFPS_ = 0.0;
+    
     initialized_ = true;
     return true;
 }
@@ -207,6 +218,16 @@ void OpenGLRenderer::setupShaders() {
 
 void OpenGLRenderer::shutdown() {
     if (initialized_) {
+        // Print final FPS statistics
+        double totalTime = glfwGetTime() - startTime_;
+        double avgFPS = totalTime > 0 ? totalFrameCount_ / totalTime : 0.0;
+        
+        std::cout << "\n=== OpenGL Renderer Statistics ===" << std::endl;
+        std::cout << "Total frames: " << totalFrameCount_ << std::endl;
+        std::cout << "Total time: " << totalTime << " seconds" << std::endl;
+        std::cout << "Average FPS: " << avgFPS << std::endl;
+        std::cout << "==================================\n" << std::endl;
+        
         // Clean up texture cache
         for (auto& pair : textureCache_) {
             glDeleteTextures(1, &pair.second);
@@ -306,6 +327,19 @@ void OpenGLRenderer::endFrame() {
     // Only wait for GPU if new textures were created this frame
     if (newTexturesCreatedThisFrame_) {
         glFinish();
+    }
+    
+    // Update FPS counter
+    frameCount_++;
+    totalFrameCount_++;
+    double currentTime = glfwGetTime();
+    double elapsed = currentTime - lastFPSUpdateTime_;
+    
+    // Update FPS every 0.5 seconds
+    if (elapsed >= 0.5) {
+        currentFPS_ = frameCount_ / elapsed;
+        frameCount_ = 0;
+        lastFPSUpdateTime_ = currentTime;
     }
 }
 
@@ -563,9 +597,62 @@ void OpenGLRenderer::renderRectangle(Rectangle* rect, const float* mvpMatrix) {
 }
 
 void OpenGLRenderer::renderText(Text* text, const float* mvpMatrix) {
-    // Text rendering implementation would go here
-    // For now, this is a placeholder
-    // Full implementation would require FreeType or similar library
+    // NOTE: This is a simplified implementation that renders text as colored rectangles
+    // A full implementation would require FreeType library for proper font rendering
+    // For now, we'll render a placeholder rectangle to indicate where text would appear
+    
+    std::string textStr = text->getText();
+    if (textStr.empty()) return;
+    
+    float r, g, b, a;
+    text->getColor(r, g, b, a);
+    
+    float fontSize = 24.0f;
+    if (text->hasFont()) {
+        fontSize = text->getFont()->getSize();
+    }
+    
+    // Estimate text dimensions (rough approximation)
+    // Each character is approximately 0.6 * fontSize wide
+    float estimatedWidth = textStr.length() * fontSize * 0.6f;
+    float estimatedHeight = fontSize;
+    
+    // Create vertices for a simple rectangle placeholder
+    Vertex vertices[] = {
+        {{0.0f, 0.0f}, {r, g, b, a * 0.3f}, {0.0f, 1.0f}},
+        {{estimatedWidth, 0.0f}, {r, g, b, a * 0.3f}, {1.0f, 1.0f}},
+        {{0.0f, estimatedHeight}, {r, g, b, a * 0.3f}, {0.0f, 0.0f}},
+        {{estimatedWidth, 0.0f}, {r, g, b, a * 0.3f}, {1.0f, 1.0f}},
+        {{estimatedWidth, estimatedHeight}, {r, g, b, a * 0.3f}, {1.0f, 0.0f}},
+        {{0.0f, estimatedHeight}, {r, g, b, a * 0.3f}, {0.0f, 0.0f}},
+    };
+    
+    // Upload vertices
+    glBindVertexArray(vao_);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo_);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_DYNAMIC_DRAW);
+    
+    // Set MVP matrix uniform
+    int mvpLoc = glGetUniformLocation(shaderProgram_, "uMVPMatrix");
+    glUniformMatrix4fv(mvpLoc, 1, GL_FALSE, mvpMatrix);
+    
+    // Use white texture
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, whiteTexture_);
+    glUniform1i(glGetUniformLocation(shaderProgram_, "uTexture"), 0);
+    
+    // Draw
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+    
+    glBindVertexArray(0);
+    
+    // Log warning once
+    static bool warned = false;
+    if (!warned) {
+        std::cerr << "WARNING: OpenGL text rendering is using placeholder implementation. "
+                  << "For proper text rendering, FreeType library integration is required." << std::endl;
+        warned = true;
+    }
 }
 
 unsigned int OpenGLRenderer::getOrCreateTexture(Image* image) {
@@ -671,9 +758,13 @@ void OpenGLRenderer::renderFrame3DToTexture(Frame3D* frame) {
     currentRenderTargetWidth_ = rtWidth;
     currentRenderTargetHeight_ = rtHeight;
     
+    // Disable depth testing for off-screen 2D rendering
+    glDisable(GL_DEPTH_TEST);
+    glDepthMask(GL_FALSE);
+    
     // Clear to transparent
     glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glClear(GL_COLOR_BUFFER_BIT);
     
     // Create orthographic projection for 2D rendering
     float scaleX = 2.0f / rtWidth;
@@ -694,6 +785,10 @@ void OpenGLRenderer::renderFrame3DToTexture(Frame3D* frame) {
     // Restore framebuffer and state
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glDeleteFramebuffers(1, &fbo);
+    
+    // Re-enable depth testing for main 3D rendering
+    glEnable(GL_DEPTH_TEST);
+    glDepthMask(GL_TRUE);
     
     // Restore viewport and scissor
     GLFWwindow* window = static_cast<GLFWwindow*>(window_);
@@ -880,6 +975,14 @@ void OpenGLRenderer::createTransformMatrix(float x, float y, float z,
     matrix[13] = y;
     matrix[14] = z;
     matrix[15] = 1;
+}
+
+double OpenGLRenderer::getFPS() const {
+    return currentFPS_;
+}
+
+int OpenGLRenderer::getFrameCount() const {
+    return totalFrameCount_;
 }
 
 } // namespace CyberUI

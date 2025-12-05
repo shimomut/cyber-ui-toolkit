@@ -31,6 +31,10 @@ public:
     // Capture functionality for debugging and testing
     virtual bool captureFrame(std::vector<uint8_t>& pixelData, int& width, int& height) = 0;
     virtual bool saveCapture(const char* filename) = 0;
+    
+    // FPS measurement
+    virtual double getFPS() const = 0;
+    virtual int getFrameCount() const = 0;
 };
 
 // Factory functions

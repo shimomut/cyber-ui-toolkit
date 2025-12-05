@@ -27,6 +27,10 @@ public:
     // Capture functionality
     bool captureFrame(std::vector<uint8_t>& pixelData, int& width, int& height) override;
     bool saveCapture(const char* filename) override;
+    
+    // FPS measurement
+    double getFPS() const override;
+    int getFrameCount() const override;
 
 private:
     void setupShaders();
@@ -81,6 +85,13 @@ private:
     
     // White texture for non-textured rectangles
     unsigned int whiteTexture_;
+    
+    // FPS tracking
+    int frameCount_;           // Frames since last FPS update (for FPS calculation)
+    int totalFrameCount_;      // Total frames rendered (never reset)
+    double startTime_;
+    double lastFPSUpdateTime_;
+    double currentFPS_;
 };
 
 } // namespace CyberUI

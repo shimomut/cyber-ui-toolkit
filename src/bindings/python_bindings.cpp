@@ -39,7 +39,9 @@ PYBIND11_MODULE(cyber_ui_core, m) {
             py::bytes data(reinterpret_cast<const char*>(pixelData.data()), pixelData.size());
             return py::make_tuple(data, width, height);
         })
-        .def("save_capture", &Renderer::saveCapture);
+        .def("save_capture", &Renderer::saveCapture)
+        .def("get_fps", &Renderer::getFPS)
+        .def("get_frame_count", &Renderer::getFrameCount);
 
     // Factory functions
 #ifdef USE_METAL_BACKEND

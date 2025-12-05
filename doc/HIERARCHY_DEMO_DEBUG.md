@@ -79,7 +79,7 @@ While the demo is running, you can toggle various rendering features using termi
 
 - Uses non-blocking terminal input via `select.select()`
 - Toggles are applied immediately without frame delay
-- All objects reset to static positions when animation is disabled
+- When animation is disabled, objects freeze at their current position/rotation
 - Texture state is managed through `set_image()` calls (pass `None` to clear)
 
 ## Capture Mode

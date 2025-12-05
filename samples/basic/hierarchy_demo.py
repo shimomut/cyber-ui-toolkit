@@ -440,20 +440,7 @@ def main():
             for i, item in enumerate(carousel_items):
                 item_offset = math.sin(time * 1.5 + i * 0.5) * 15.0
                 item.set_position(140.0, 100.0 + i * 80.0 + item_offset)
-        else:
-            # Reset to static positions when animation is disabled
-            frame3d_left.set_rotation(0.0, 0.2, 0.0)
-            frame3d_center.set_rotation(0.0, 0.0, 0.0)
-            frame3d_right.set_rotation(0.0, -0.2, 0.0)
-            
-            frame3d_left.set_position(-350.0, 0.0, -100.0)
-            frame3d_center.set_position(0.0, 0.0, 50.0)
-            frame3d_right.set_position(350.0, 0.0, -100.0)
-            
-            nested_frame.set_position(150.0, 310.0)
-            
-            for i, item in enumerate(carousel_items):
-                item.set_position(140.0, 100.0 + i * 80.0)
+        # When animation is disabled, positions remain frozen at their current state
         
         if renderer.begin_frame():
             # Render entire scene with automatic tree traversal

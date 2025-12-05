@@ -41,9 +41,16 @@ PYBIND11_MODULE(cyber_ui_core, m) {
         })
         .def("save_capture", &Renderer::saveCapture);
 
-    // Factory function
+    // Factory functions
+#ifdef USE_METAL_BACKEND
     m.def("create_metal_renderer", &createMetalRenderer,
           "Create a Metal-based renderer for macOS");
+#endif
+    
+#ifdef USE_OPENGL_BACKEND
+    m.def("create_opengl_renderer", &createOpenGLRenderer,
+          "Create an OpenGL-based renderer (cross-platform)");
+#endif
 
     // Camera class
     py::class_<Camera, std::shared_ptr<Camera>>(m, "Camera")

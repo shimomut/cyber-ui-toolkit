@@ -65,8 +65,20 @@ def main():
     else:
         print("Frame capture disabled (use --capture to enable)\n")
     
-    # Initialize renderer
-    renderer = ui.create_metal_renderer()
+    # Initialize renderer (auto-detect available backend)
+    if hasattr(ui, 'create_metal_renderer'):
+        renderer = ui.create_metal_renderer()
+        backend = "Metal"
+    elif hasattr(ui, 'create_opengl_renderer'):
+        renderer = ui.create_opengl_renderer()
+        backend = "OpenGL"
+    else:
+        print("❌ No rendering backend available!")
+        print("   Build with: make build-metal or make build-opengl")
+        return
+    
+    print(f"Using {backend} backend")
+    
     if not renderer.initialize(1024, 768, "Cyber UI - 3D Hierarchy Demo"):
         print("Failed to initialize renderer")
         return

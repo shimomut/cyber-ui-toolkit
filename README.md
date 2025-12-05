@@ -20,7 +20,9 @@ The library consists of two layers:
 
 ## Features
 
-- ✅ Metal renderer backend for macOS
+- ✅ **Multiple rendering backends**:
+  - Metal (macOS, default)
+  - OpenGL 3.3 Core (cross-platform, optional)
 - ✅ 2D shape rendering (rectangles)
 - ✅ Image loading with Pillow integration
 - ✅ Texture mapping and color tinting
@@ -46,10 +48,17 @@ xcode-select --install
 ### Build
 
 ```bash
-# Build the library
-make
+# Build with Metal backend (default, macOS only)
+make build-metal
 
-# Or rebuild from scratch
+# Build with OpenGL backend (cross-platform, requires GLFW)
+# Install GLFW first: brew install glfw
+make build-opengl
+
+# Or just use default
+make build
+
+# Rebuild from scratch
 make clean && make
 ```
 
@@ -97,8 +106,13 @@ rect.set_position(100, 100, 0)
 rect.set_color(1.0, 1.0, 1.0, 1.0)  # White
 rect.set_image(ui_img)
 
-# Create renderer and render
+# Create renderer (choose backend)
+# Metal backend (macOS only, default)
 renderer = ui.create_metal_renderer()
+
+# Or OpenGL backend (cross-platform, if built with BACKEND=opengl)
+# renderer = ui.create_opengl_renderer()
+
 renderer.initialize(800, 600, "Cyber UI Demo")
 
 while not renderer.should_close():
@@ -129,6 +143,7 @@ cyber-ui-toolkit/
 ## Documentation
 
 - [Project Structure](/.kiro/steering/project-structure.md) - Directory organization and conventions
+- [OpenGL Backend](/doc/OPENGL_BACKEND.md) - OpenGL rendering backend details
 - [Clipping Implementation](/doc/CLIPPING_IMPLEMENTATION.md) - Frame2D clipping system details
 - [Clipping Demo](/doc/samples-clipping.md) - Clipping demo walkthrough
 - [Capture System](/doc/CAPTURE_SYSTEM.md) - Frame capture for debugging and testing
@@ -141,18 +156,38 @@ cyber-ui-toolkit/
 ### Build Targets
 
 ```bash
-make build          # Build the library
-make clean          # Remove build artifacts
-make rebuild        # Clean and build
-make install-deps   # Install Python dependencies
-make run-basic      # Build and run basic shape sample
-make run-hierarchy  # Build and run 3D hierarchy demo
-make run-text       # Build and run text rendering demo
-make run-clipping   # Build and run Frame2D clipping demo
-make run-capture    # Build and run capture demo
-make test-capture   # Run capture system tests
-make help           # Show all targets
+make build              # Build with default backend (Metal)
+make build-metal        # Build with Metal backend
+make build-opengl       # Build with OpenGL backend (requires GLFW)
+make clean              # Remove build artifacts
+make rebuild            # Clean and build
+make install-deps       # Install Python dependencies
+make run-basic          # Build and run basic shape sample
+make run-hierarchy      # Build and run 3D hierarchy demo
+make run-text           # Build and run text rendering demo
+make run-clipping       # Build and run Frame2D clipping demo
+make run-capture        # Build and run capture demo
+make test-capture       # Run capture system tests
+make help               # Show all targets
 ```
+
+### Backend Selection
+
+The toolkit supports multiple rendering backends:
+
+**Metal (default)**:
+- macOS only
+- Best performance on Apple hardware
+- Native integration with macOS
+- Build: `make build-metal`
+
+**OpenGL**:
+- Cross-platform (macOS, Linux, Windows)
+- Requires GLFW: `brew install glfw` (macOS)
+- OpenGL 3.3 Core Profile
+- Build: `make build-opengl`
+
+See [OpenGL Backend Documentation](doc/OPENGL_BACKEND.md) for details.
 
 ### Adding New Features
 

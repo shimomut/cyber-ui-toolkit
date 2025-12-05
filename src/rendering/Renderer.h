@@ -33,7 +33,8 @@ public:
     virtual bool saveCapture(const char* filename) = 0;
 };
 
-// Factory function
+// Factory functions
 std::unique_ptr<Renderer> createMetalRenderer();
+std::unique_ptr<Renderer> createOpenGLRenderer();
 
 } // namespace CyberUI

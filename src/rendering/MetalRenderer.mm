@@ -1250,10 +1250,3 @@ void MetalRenderer::transformPointToScreen(float x, float y, const float* mvpMat
 }
 
 } // namespace CyberUI
-
-// Factory function implementation
-namespace CyberUI {
-std::unique_ptr<Renderer> createMetalRenderer() {
-    return std::make_unique<MetalRenderer>();
-}
-}

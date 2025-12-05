@@ -22,6 +22,7 @@ from PIL import Image as PILImage
 import os
 import math
 import argparse
+import time
 
 def load_image_with_pillow(filepath):
     """Load an image using Pillow and return a cyber_ui Image object"""
@@ -341,6 +342,7 @@ def main():
         os.makedirs(output_dir, exist_ok=True)
     
     frame_count = 0
+    start_time = time.time()
     
     # Function to apply texture state
     def apply_texture_state(enabled):
@@ -430,27 +432,27 @@ def main():
                 print("\nExiting...")
                 break
         
-        time = frame_count * 0.001
+        elapsed_time = time.time() - start_time
         
         # Apply animations only if enabled
         if animation_enabled:
             # Animate Frame3D rotations
-            frame3d_left.set_rotation(0.0, 0.2 + math.sin(time) * 0.15, 0.0)
-            frame3d_center.set_rotation(math.sin(time * 0.5) * 0.1, 0.0, 0.0)
-            frame3d_right.set_rotation(0.0, -0.2 + math.sin(time) * 0.15, 0.0)
+            frame3d_left.set_rotation(0.0, 0.2 + math.sin(elapsed_time) * 0.15, 0.0)
+            frame3d_center.set_rotation(math.sin(elapsed_time * 0.5) * 0.1, 0.0, 0.0)
+            frame3d_right.set_rotation(0.0, -0.2 + math.sin(elapsed_time) * 0.15, 0.0)
             
             # Animate Frame3D positions (gentle floating)
-            frame3d_left.set_position(-350.0, math.sin(time * 0.8) * 30.0, -100.0 + math.cos(time * 0.6) * 20.0)
-            frame3d_center.set_position(0.0, math.sin(time * 0.6 + 1.0) * 25.0, 50.0 + math.sin(time * 0.4) * 30.0)
-            frame3d_right.set_position(350.0, math.sin(time * 0.7 + 2.0) * 30.0, -100.0 + math.cos(time * 0.5) * 20.0)
+            frame3d_left.set_position(-350.0, math.sin(elapsed_time * 0.8) * 30.0, -100.0 + math.cos(elapsed_time * 0.6) * 20.0)
+            frame3d_center.set_position(0.0, math.sin(elapsed_time * 0.6 + 1.0) * 25.0, 50.0 + math.sin(elapsed_time * 0.4) * 30.0)
+            frame3d_right.set_position(350.0, math.sin(elapsed_time * 0.7 + 2.0) * 30.0, -100.0 + math.cos(elapsed_time * 0.5) * 20.0)
             
             # Animate nested frame position (vertical oscillation)
-            offset_y = math.sin(time * 2.0) * 30.0
+            offset_y = math.sin(elapsed_time * 2.0) * 30.0
             nested_frame.set_position(150.0, 310.0 + offset_y)
             
             # Animate carousel items (staggered vertical movement)
             for i, item in enumerate(carousel_items):
-                item_offset = math.sin(time * 1.5 + i * 0.5) * 15.0
+                item_offset = math.sin(elapsed_time * 1.5 + i * 0.5) * 15.0
                 item.set_position(140.0, 100.0 + i * 80.0 + item_offset)
         # When animation is disabled, positions remain frozen at their current state
         

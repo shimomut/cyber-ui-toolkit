@@ -27,6 +27,7 @@ from PIL import Image as PILImage
 import os
 import math
 import argparse
+import time
 
 def load_image_with_pillow(filepath):
     """Load an image using Pillow and return a cyber_ui Image object"""
@@ -230,28 +231,29 @@ def main():
     print()
     
     frame_count = 0
+    start_time = time.time()
     
     while not renderer.should_close():
         renderer.poll_events()
         
-        time = frame_count * 0.016  # ~60fps
+        elapsed_time = time.time() - start_time
         
-        # Animate rectangles with clear, visible movement (10x slower)
+        # Animate rectangles with clear, visible movement (4x faster)
         # Red rectangle - vertical oscillation
-        offset_y1 = math.sin(time * 0.05) * 250.0  # Large movement to show clipping
+        offset_y1 = math.sin(elapsed_time * 0.2) * 250.0  # Large movement to show clipping
         animated_rects[0].set_position(100.0, 100.0 + offset_y1)
         
         # Blue rectangle - vertical oscillation (opposite phase)
-        offset_y2 = math.sin(time * 0.05 + 3.14) * 250.0  # 180 degrees out of phase
+        offset_y2 = math.sin(elapsed_time * 0.2 + 3.14) * 250.0  # 180 degrees out of phase
         animated_rects[1].set_position(100.0, 250.0 + offset_y2)
         
-        # Animate text with clear movement (10x slower)
-        text_offset_y = math.sin(time * 0.07) * 300.0
+        # Animate text with clear movement (4x faster)
+        text_offset_y = math.sin(elapsed_time * 0.28) * 300.0
         animated_texts[0].set_position(150.0, 200.0 + text_offset_y)
         
         # 3D rotation now works with off-screen rendering!
         # Content is rendered to texture with proper clipping, then the texture is rotated
-        frame3d.set_rotation(math.sin(time * 0.01) * 0.3, math.cos(time * 0.008) * 0.2, 0.0)
+        frame3d.set_rotation(math.sin(elapsed_time * 0.04) * 0.3, math.cos(elapsed_time * 0.032) * 0.2, 0.0)
         
         if renderer.begin_frame():
             renderer.render_scene(scene)

@@ -308,22 +308,25 @@ void OpenGLRenderer::endFrame() {
 void OpenGLRenderer::renderObject(Object2D* object) {
     if (!object || !object->isVisible()) return;
     
-    // Get framebuffer size (accounts for Retina scaling)
+    // Use window size (logical coordinates) for the ortho matrix
+    // Object positions and sizes are in logical coordinates, not framebuffer coordinates
     GLFWwindow* window = static_cast<GLFWwindow*>(window_);
-    int fbWidth, fbHeight;
-    glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
+    float viewWidth = static_cast<float>(windowWidth_);
+    float viewHeight = static_cast<float>(windowHeight_);
     
-    float viewWidth = static_cast<float>(fbWidth);
-    float viewHeight = static_cast<float>(fbHeight);
-    
+    // Create orthographic projection matrix that maps pixel coordinates to clip space
+    // Using COLUMN-MAJOR format (OpenGL standard)
+    // Maps from top-left origin [0, width] x [0, height] to OpenGL clip space [-1, 1] x [1, -1]
+    // Note: Y is flipped because our coordinate system has Y increasing downward (top-left origin)
+    // but OpenGL clip space has Y increasing upward
     float scaleX = 2.0f / viewWidth;
-    float scaleY = -2.0f / viewHeight;
+    float scaleY = -2.0f / viewHeight;  // Negative to flip Y-axis
     
     float orthoMatrix[16] = {
-        scaleX, 0, 0, 0,
-        0, scaleY, 0, 0,
-        0, 0, 1, 0,
-        -1, 1, 0, 1
+        scaleX, 0, 0, 0,      // Column 0
+        0, scaleY, 0, 0,      // Column 1  
+        0, 0, 1, 0,           // Column 2
+        -1, 1, 0, 1           // Column 3 (translation: map (0,0) to (-1,1) in clip space)
     };
     
     renderObject2D(object, orthoMatrix);
@@ -435,14 +438,16 @@ void OpenGLRenderer::renderObject2D(Object2D* object, const float* mvpMatrix) {
     float x, y;
     object->getPosition(x, y);
     
+    // Translation matrix in pixel space (applied before projection)
+    // Using COLUMN-MAJOR format (OpenGL standard)
     float translationMatrix[16] = {
-        1, 0, 0, 0,
-        0, 1, 0, 0,
-        0, 0, 1, 0,
-        x, y, 0, 1
+        1, 0, 0, 0,    // Column 0
+        0, 1, 0, 0,    // Column 1
+        0, 0, 1, 0,    // Column 2
+        x, y, 0, 1     // Column 3 (translation)
     };
     
-    // Combine with parent MVP
+    // Combine: MVP * Translation (right-to-left: first translate, then project)
     float objectMVP[16];
     multiplyMatrices(mvpMatrix, translationMatrix, objectMVP);
     
@@ -508,14 +513,6 @@ void OpenGLRenderer::renderRectangle(Rectangle* rect, const float* mvpMatrix) {
     float r, g, b, a;
     rect->getColor(r, g, b, a);
     
-    // Debug output
-    static int callCount = 0;
-    if (callCount < 5) {
-        std::cout << "renderRectangle called: size=" << width << "x" << height 
-                  << " color=(" << r << "," << g << "," << b << "," << a << ")" << std::endl;
-        callCount++;
-    }
-    
     // Create vertices with top-left origin
     Vertex vertices[] = {
         {{0.0f, 0.0f}, {r, g, b, a}, {0.0f, 1.0f}},
@@ -540,19 +537,8 @@ void OpenGLRenderer::renderRectangle(Rectangle* rect, const float* mvpMatrix) {
             warned = true;
         }
     }
-    // Pass as row-major (GL_TRUE) since our matrices are row-major
-    glUniformMatrix4fv(mvpLoc, 1, GL_TRUE, mvpMatrix);
-    
-    // Debug: print first MVP matrix
-    static bool printedMVP = false;
-    if (!printedMVP) {
-        std::cout << "MVP Matrix:" << std::endl;
-        for (int i = 0; i < 4; i++) {
-            std::cout << "  [" << mvpMatrix[i*4] << ", " << mvpMatrix[i*4+1] << ", " 
-                      << mvpMatrix[i*4+2] << ", " << mvpMatrix[i*4+3] << "]" << std::endl;
-        }
-        printedMVP = true;
-    }
+    // Pass as column-major (GL_FALSE) since our matrices are now column-major
+    glUniformMatrix4fv(mvpLoc, 1, GL_FALSE, mvpMatrix);
     
     // Handle texture
     unsigned int texture = whiteTexture_;
@@ -569,12 +555,6 @@ void OpenGLRenderer::renderRectangle(Rectangle* rect, const float* mvpMatrix) {
     
     // Draw
     glDrawArrays(GL_TRIANGLES, 0, 6);
-    
-    // Check for OpenGL errors (debug)
-    GLenum err = glGetError();
-    if (err != GL_NO_ERROR) {
-        std::cerr << "OpenGL error in renderRectangle: " << err << std::endl;
-    }
     
     glBindVertexArray(0);
 }
@@ -723,11 +703,13 @@ bool OpenGLRenderer::saveCapture(const char* filename) {
 }
 
 void OpenGLRenderer::multiplyMatrices(const float* a, const float* b, float* result) {
-    for (int i = 0; i < 4; i++) {
-        for (int j = 0; j < 4; j++) {
-            result[i * 4 + j] = 0;
+    // Column-major matrix multiplication: C = A * B
+    // result[col][row] = sum(a[k][row] * b[col][k])
+    for (int col = 0; col < 4; col++) {
+        for (int row = 0; row < 4; row++) {
+            result[col * 4 + row] = 0;
             for (int k = 0; k < 4; k++) {
-                result[i * 4 + j] += a[i * 4 + k] * b[k * 4 + j];
+                result[col * 4 + row] += a[k * 4 + row] * b[col * 4 + k];
             }
         }
     }

@@ -120,6 +120,10 @@ bool OpenGLRenderer::initialize(int width, int height, const char* title) {
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     
+    // Enable depth testing for 3D rendering
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LEQUAL);
+    
     // Enable scissor test for clipping
     glEnable(GL_SCISSOR_TEST);
     
@@ -310,7 +314,6 @@ void OpenGLRenderer::renderObject(Object2D* object) {
     
     // Use window size (logical coordinates) for the ortho matrix
     // Object positions and sizes are in logical coordinates, not framebuffer coordinates
-    GLFWwindow* window = static_cast<GLFWwindow*>(window_);
     float viewWidth = static_cast<float>(windowWidth_);
     float viewHeight = static_cast<float>(windowHeight_);
     
@@ -377,8 +380,8 @@ void OpenGLRenderer::renderFrame3D(Frame3D* frame, const float* viewProjMatrix) 
         renderFrame3DToTexture(frame);
         
         // Then render the texture as a quad with 3D transforms
-        unsigned int texture = frame->getRenderTargetTexture() ? 
-            *static_cast<unsigned int*>(frame->getRenderTargetTexture()) : 0;
+        void* texturePtr = frame->getRenderTargetTexture();
+        unsigned int texture = texturePtr ? static_cast<unsigned int>(reinterpret_cast<uintptr_t>(texturePtr)) : 0;
         
         if (texture) {
             // Get Frame3D transform
@@ -600,16 +603,147 @@ unsigned int OpenGLRenderer::getOrCreateTexture(Image* image) {
 }
 
 unsigned int OpenGLRenderer::getOrCreateRenderTarget(Frame3D* frame) {
-    // Render target implementation
-    return 0;
+    if (!frame) return 0;
+    
+    // Check cache first
+    auto it = renderTargetCache_.find(frame);
+    if (it != renderTargetCache_.end()) {
+        return it->second;
+    }
+    
+    // Create new render target texture
+    int width, height;
+    frame->getRenderTargetSize(width, height);
+    
+    unsigned int texture;
+    glGenTextures(1, &texture);
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glBindTexture(GL_TEXTURE_2D, 0);
+    
+    // Cache the texture
+    renderTargetCache_[frame] = texture;
+    frame->setRenderTargetTexture(reinterpret_cast<void*>(static_cast<uintptr_t>(texture)));
+    
+    return texture;
 }
 
 void OpenGLRenderer::renderFrame3DToTexture(Frame3D* frame) {
-    // Off-screen rendering implementation
+    if (!frame) return;
+    
+    // Get or create render target
+    unsigned int renderTarget = getOrCreateRenderTarget(frame);
+    if (!renderTarget) return;
+    
+    // Get render target size
+    int rtWidth, rtHeight;
+    frame->getRenderTargetSize(rtWidth, rtHeight);
+    
+    // Create framebuffer object
+    unsigned int fbo;
+    glGenFramebuffers(1, &fbo);
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    
+    // Attach texture to framebuffer
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, renderTarget, 0);
+    
+    // Check framebuffer status
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+        std::cerr << "Framebuffer is not complete!" << std::endl;
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glDeleteFramebuffers(1, &fbo);
+        return;
+    }
+    
+    // Save current state
+    int savedRenderTargetWidth = currentRenderTargetWidth_;
+    int savedRenderTargetHeight = currentRenderTargetHeight_;
+    
+    // Set viewport for off-screen rendering
+    glViewport(0, 0, rtWidth, rtHeight);
+    glScissor(0, 0, rtWidth, rtHeight);
+    
+    // Update current render target dimensions
+    currentRenderTargetWidth_ = rtWidth;
+    currentRenderTargetHeight_ = rtHeight;
+    
+    // Clear to transparent
+    glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    
+    // Create orthographic projection for 2D rendering
+    float scaleX = 2.0f / rtWidth;
+    float scaleY = -2.0f / rtHeight;
+    
+    float orthoMatrix[16] = {
+        scaleX, 0, 0, 0,
+        0, scaleY, 0, 0,
+        0, 0, 1, 0,
+        -1, 1, 0, 1
+    };
+    
+    // Render all children to texture
+    for (const auto& child : frame->getChildren()) {
+        renderObject2D(child.get(), orthoMatrix);
+    }
+    
+    // Restore framebuffer and state
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glDeleteFramebuffers(1, &fbo);
+    
+    // Restore viewport and scissor
+    GLFWwindow* window = static_cast<GLFWwindow*>(window_);
+    int fbWidth, fbHeight;
+    glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
+    glViewport(0, 0, fbWidth, fbHeight);
+    glScissor(0, 0, fbWidth, fbHeight);
+    
+    // Restore render target dimensions
+    currentRenderTargetWidth_ = savedRenderTargetWidth;
+    currentRenderTargetHeight_ = savedRenderTargetHeight;
 }
 
 void OpenGLRenderer::renderTexturedQuad(unsigned int texture, float width, float height, const float* mvpMatrix) {
-    // Textured quad rendering implementation
+    if (!texture) return;
+    
+    // Create quad vertices (centered)
+    float halfW = width * 0.5f;
+    float halfH = height * 0.5f;
+    
+    Vertex vertices[] = {
+        // Triangle 1
+        {{-halfW, -halfH}, {1, 1, 1, 1}, {0, 1}},  // Bottom-left
+        {{ halfW, -halfH}, {1, 1, 1, 1}, {1, 1}},  // Bottom-right
+        {{-halfW,  halfH}, {1, 1, 1, 1}, {0, 0}},  // Top-left
+        
+        // Triangle 2
+        {{ halfW, -halfH}, {1, 1, 1, 1}, {1, 1}},  // Bottom-right
+        {{ halfW,  halfH}, {1, 1, 1, 1}, {1, 0}},  // Top-right
+        {{-halfW,  halfH}, {1, 1, 1, 1}, {0, 0}}   // Top-left
+    };
+    
+    // Upload vertices
+    glBindVertexArray(vao_);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo_);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_DYNAMIC_DRAW);
+    
+    // Set MVP matrix uniform
+    int mvpLoc = glGetUniformLocation(shaderProgram_, "uMVPMatrix");
+    glUniformMatrix4fv(mvpLoc, 1, GL_FALSE, mvpMatrix);
+    
+    // Bind texture
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glUniform1i(glGetUniformLocation(shaderProgram_, "uTexture"), 0);
+    
+    // Draw
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+    
+    glBindVertexArray(0);
 }
 
 void OpenGLRenderer::pushScissorRect(float x, float y, float width, float height, const float* mvpMatrix) {

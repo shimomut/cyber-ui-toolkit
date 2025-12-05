@@ -37,7 +37,7 @@ public:
     void setName(const std::string& name) { name_ = name; }
     const std::string& getName() const { return name_; }
 
-    // Off-screen rendering is always enabled for Frame3D
+    // Off-screen rendering (always enabled for proper clipping with 3D transforms)
     bool isOffscreenRenderingEnabled() const { return true; }
     
     // Size configuration for render target

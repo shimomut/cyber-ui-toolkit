@@ -1,4 +1,4 @@
-.PHONY: all build clean run-basic run-hierarchy run-text run-capture run-clipping test-capture test-clipping install-deps help
+.PHONY: all build clean run-hierarchy run-clipping test-capture test-clipping install-deps help
 
 # Configuration
 CXX := clang++
@@ -73,25 +73,10 @@ check-deps:
 	@$(PYTHON) -m pybind11 --includes >/dev/null 2>&1 || \
 		(echo "Error: pybind11 not found. Run 'make install-deps' first." && exit 1)
 
-# Run basic shape2d sample
-run-basic: build
-	@echo "Running basic shape2d sample..."
-	@cd samples/basic && $(PYTHON) shape2d.py
-
 # Run hierarchy demo sample
 run-hierarchy: build
 	@echo "Running hierarchy demo sample..."
 	@cd samples/basic && $(PYTHON) hierarchy_demo.py
-
-# Run text demo sample
-run-text: build
-	@echo "Running text demo sample..."
-	@cd samples/basic && $(PYTHON) text_demo.py
-
-# Run capture demo sample
-run-capture: build
-	@echo "Running capture demo sample..."
-	@cd samples/basic && $(PYTHON) capture_demo.py
 
 # Run clipping demo sample
 run-clipping: build
@@ -120,10 +105,7 @@ help:
 	@echo "  make rebuild       - Clean and build"
 	@echo "  make install-deps  - Install Python dependencies (pybind11)"
 	@echo "  make check-deps    - Check if dependencies are installed"
-	@echo "  make run-basic     - Build and run basic shape2d sample"
 	@echo "  make run-hierarchy - Build and run hierarchy demo sample"
-	@echo "  make run-text      - Build and run text rendering demo sample"
-	@echo "  make run-capture   - Build and run capture demo sample"
 	@echo "  make run-clipping  - Build and run Frame2D clipping demo sample"
 	@echo "  make test-capture  - Build and run capture system tests"
 	@echo "  make test-clipping - Build and run Frame2D clipping tests"
